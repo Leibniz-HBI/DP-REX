@@ -68,7 +68,7 @@
     border-width: 0px;
 }
 .vran-table-page-header > button:disabled {
-  background-color: #5F9EA044
+    background-color: #5f9ea044;
 }
 .vran-table-page-body {
     margin-top: 12px;
@@ -126,4 +126,64 @@
 }
 .vran-column-add-button > button:hover {
     background-color: #efeff1;
+}
+.vran-column-menu-container,
+.vran-header-menu-container {
+    padding: 0px 0;
+    border-radius: 6px;
+    box-shadow: 0px 0px 1px rgba(62, 65, 86, 0.7), 0px 6px 12px rgba(62, 65, 86, 0.35);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+
+    background-color: gainsboro;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.vran-column-menu-container {
+    width: 500px;
+}
+.vran-header-menu-container {
+    width: 100px;
+}
+
+.vran-column-menu-container > .vran-column-menu-item > .danger,
+.vran-header-menu-container > .vran-header-menu-item > .danger {
+    color: rgba(255, 40, 40, 0.8);
+}
+.vran-column-menu-container > .danger:hover,
+.vran-header-menu-container > .danger:hover {
+    color: rgba(255, 40, 40, 1);
+    font-weight: 700;
+}
+
+.vran-column-menu-container > .vran-column-menu-item,
+.vran-header-menu-container > .vran-header-menu-item {
+    padding: 6px 8px;
+    color: rgba(0, 0, 0, 0.7);
+    transition: background-color 100ms;
+    cursor: pointer;
+}
+.vran-column-menu-container > .vran-column-menu-item:hover,
+.vran-header-menu-container > .vran-header-menu-item:hover {
+    color: rgba(0, 0, 0, 0.9);
+    font-weight: 700;
+}
+.vran-header-menu-close-row {
+    pointer-events: none;
+    padding: 0;
+    margin: 0;
+    align-items: end;
+    display: flex;
+    flex-direction: row-reverse;
+    background-color: gainsboro;
+}
+.vran-header-menu-close-row > div {
+    text-align: center;
+    pointer-events: all;
+    margin: 4px;
+    height: 16px;
+    width: 16px;
+    cursor: pointer;
 }
