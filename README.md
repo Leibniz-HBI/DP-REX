@@ -1,10 +1,21 @@
 # DP|rEX VrAn
-This is the repository of VrAN a subproject of DP|rEX.
-DP|rEX is funded by the German Federal Ministry of Education and Reasearch.
+This repository contains an editor for collaborative maintenance of metadata for social media accounts.
+It is developed as the infrastructure of the data trustee for research on right wing extremism (VrAN).
 
-# Note
-The repository is still in its infancy.
-More details will be added in the future.
+VrAN is a sub project of DP|rEX and funded by the German Federal Ministry of Education and Reasearch.
+
+## Features
+Currently the following features are supported:
+* View social media account metadata
+* Change the displayed metadata fields
+* Create new metadata fields
+* Edit Data
+
+### Planned Features
+The following features will be implemented
+* Bulk data upload
+* Assisted review for merging data from bulk uploads into the database
+
 
 # Running
 Currently there is no recommended way of running VrAN.
