@@ -3,7 +3,7 @@ import { PersonTable } from './person_natural/components'
 import '@glideapps/glide-data-grid/dist/index.css'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import { LoginProvider } from './user/components/provider'
-import { VranConf } from './config'
+import { config } from './config'
 import { HeaderProps } from './user/hooks'
 import { Button, Col, Container, Row } from 'react-bootstrap'
 
@@ -30,9 +30,9 @@ function App() {
             className=" min-vh-100 d-flex flex-column ps-0 pe-0 vran-container"
         >
             <LoginProvider
-                apiPath={VranConf.get().api_base}
+                apiPath={config.api_path}
                 header={(headerProps) => <VranHeader headerProps={headerProps} />}
-                body={() => <PersonTable />}
+                body={() => <PersonTable api_base={config.api_path} />}
             />
         </Container>
     )
