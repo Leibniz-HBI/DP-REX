@@ -1,0 +1,58 @@
+secrets:
+  db_password:
+    file: .secrets/vran_db_password
+  db_user:
+    file: .secrets/vran_db_user
+  db_name:
+    file: .secrets/vran_db_name
+  django_key:
+    file: .secrets/vran_django_key
+
+volumes:
+  vran_db_volume:
+
+services:
+  vran_ui:
+    build:
+      context: ./
+      dockerfile: container/ui_dockerfile
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /srv/vran/ssl:/etc/ssl:ro
+      - /srv/vran/acme-challenge:/srv/acme-challenge
+
+  vran_django:
+    build:
+      context: ./
+      dockerfile: container/django_dockerfile
+    restart: unless-stopped
+    ports:
+      - 8000:8000
+    expose:
+      - 8000
+    secrets:
+      - django_key
+      - db_name
+      - db_user
+      - db_password
+
+  vran_db:
+    container_name: vran_db
+    image: postgres:15.2
+    shm_size: 265m
+    restart: unless-stopped
+    expose:
+      - 5432
+    environment:
+    - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+    - POSTGRES_USER_FILE=/run/secrets/db_user
+    - POSTGRES_DB_FILE=/run/secrets/db_name
+    secrets:
+    - db_password
+    - db_user
+    - db_name
+    volumes:
+    - vran_db_volume:/var/lib/postgresql/data
