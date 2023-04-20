@@ -1,5 +1,5 @@
 "API endpoints for handling user management."
-from typing import Union
+from typing import List, Union
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import AnonymousUser, Group
@@ -9,6 +9,7 @@ from ninja.constants import NOT_SET
 from pydantic import Field
 
 from vran.exception import ApiError
+from vran.tag.api.definitions import TagDefinition
 from vran.util import EmptyResponse, VranUser
 from vran.util.auth import VranGroup, vran_auth
 
@@ -30,6 +31,7 @@ class LoginResponse(Schema):
     names_personal: str
     names_family: str
     email: str
+    columns: List[TagDefinition]
 
 
 class RegisterRequest(Schema):
@@ -110,4 +112,5 @@ def user_db_to_login_response(user):
         names_personal=user.first_name,
         names_family=user.last_name,
         email=user.email,
+        columns=[],
     )
