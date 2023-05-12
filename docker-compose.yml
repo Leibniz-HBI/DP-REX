@@ -7,9 +7,13 @@ secrets:
     file: .secrets/vran_db_name
   django_key:
     file: .secrets/vran_django_key
-
+  redis_password:
+    file: .secrets/vran_redis_password
+  redis_conf:
+    file: .secrets/vran_redis_conf
 volumes:
   vran_db_volume:
+  vran_redis_volume:
 
 services:
   vran_ui:
@@ -38,6 +42,7 @@ services:
       - db_name
       - db_user
       - db_password
+      - redis_password
 
   vran_db:
     container_name: vran_db
@@ -56,3 +61,17 @@ services:
     - db_name
     volumes:
     - vran_db_volume:/var/lib/postgresql/data
+
+  vran_redis:
+    container_name: vran_redis
+    image: redis:7.0-alpine
+    expose:
+      - 6379
+    volumes:
+      vran_redis_volume:/data
+    secrets:
+      - redis_conf
+    cmd: [
+      "redis-server",
+      "run/secrets/redis_conf"
+    ]
