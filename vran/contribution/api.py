@@ -23,7 +23,7 @@ from vran.util import VranUser
 from vran.util.auth import check_user, vran_auth
 
 router = Router()
-router.add_router("/{id_persistent}/tags", tag_router, auth=vran_auth)
+router.add_router("/{id_contribution_persistent}/tags", tag_router, auth=vran_auth)
 
 ALLOWED_CONTENT_TYPES = ["text/csv"]
 
