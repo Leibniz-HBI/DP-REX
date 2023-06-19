@@ -1,5 +1,6 @@
 """Union of all DB models."""
 # pylint: disable=unused-import
+from vran.contribution.models_django import ContributionCandidate
 from vran.contribution.tag_definition.models_django import (
     TagDefinitionContribution,
     TagInstanceContribution,
