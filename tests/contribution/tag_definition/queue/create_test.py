@@ -68,7 +68,7 @@ _expected_tag_defs = [
 def test_extracts_with_header(contribution_other):
     conf_mock = MagicMock
     conf_mock.CONTRIBUTION_DIRECTORY = "tests/files/"
-    with patch("vran.contribution.tag_definition.queue.create.settings", conf_mock):
+    with patch("vran.contribution.tag_definition.queue.util.settings", conf_mock):
         read_csv_head(contribution_other.id_persistent)
     tag_defs = TagDefinitionContribution.objects.all()  # pylint: disable=no-member
     for idx, tag_def in enumerate(tag_defs):
