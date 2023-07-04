@@ -4,6 +4,7 @@ from django.db.models import Count, Subquery
 from django.db.utils import OperationalError
 
 from vran.contribution.tag_definition.models_django import TagDefinitionContribution
+from vran.entity.models_django import Entity
 from vran.exception import ResourceLockedException
 from vran.tag.models_django import TagDefinition
 from vran.util import VranUser
@@ -15,6 +16,7 @@ class ContributionCandidate(models.Model):
     UPLOADED = "UPLD"
     COLUMNS_EXTRACTED = "CLXT"
     COLUMNS_ASSIGNED = "CLAS"
+    VALUES_EXTRACTED = "VLXT"
     ENTITIES_MATCHED = "NTMT"
     ENTITIES_ASSIGNED = "NTAS"
     VALUES_ASSIGNED = "VLAS"
@@ -23,6 +25,7 @@ class ContributionCandidate(models.Model):
         (UPLOADED, "uploaded"),
         (COLUMNS_EXTRACTED, "columns extracted"),
         (COLUMNS_ASSIGNED, "columns assigned"),
+        (VALUES_EXTRACTED, "values extracted"),
         (ENTITIES_MATCHED, "entities matched"),
         (ENTITIES_ASSIGNED, "entities assigned"),
         (VALUES_ASSIGNED, "values assigned"),
@@ -95,6 +98,11 @@ class ContributionCandidate(models.Model):
         self.state = ContributionCandidate.COLUMNS_ASSIGNED
         self.save(update_fields=["state"])
 
+    def complete_entity_assignment(self):
+        "Complete entity assignment for the candidate."
+        self.state = ContributionCandidate.ENTITIES_ASSIGNED
+        self.save(update_fields=["state"])
+
     def check_assignment_validity(self):
         "Check the validity of the column assignment for the contribution candidate."
         active = TagDefinitionContribution.objects.filter(  # pylint: disable=no-member
@@ -126,3 +134,13 @@ class ContributionCandidate(models.Model):
                 id_existing_persistent__in=duplicate_assignments
             ).values_list("name", flat=True)
             raise self.DuplicateAssignmentException(duplicate_names)
+
+    def get_entities_chunked(self, start, offset):
+        "Get entities in chunks"
+        return Entity.get_most_recent_chunked(
+            start,
+            offset,
+            Entity.objects.filter(  # pylint: disable=no-member
+                contribution_candidate=self
+            ),
+        )
