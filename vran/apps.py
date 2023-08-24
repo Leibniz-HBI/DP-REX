@@ -3,6 +3,7 @@ import logging
 from typing import List
 
 from django.apps import AppConfig, apps
+from django.conf import settings
 from django.core.exceptions import AppRegistryNotReady
 from django.db.backends.signals import connection_created
 from django.db.models.signals import post_migrate, post_save
@@ -83,42 +84,47 @@ class VranConfig(AppConfig):
             add_superuser, dispatch_uid="vran.create_initial_superuser"
         )
         try:
-            # pylint: disable=import-outside-toplevel
-            from vran.contribution.models_django import ContributionCandidate
-            from vran.contribution.tag_definition.queue import dispatch_read_csv_head
+            if not settings.IS_UNITTEST:
+                # pylint: disable=import-outside-toplevel
+                from vran.contribution.models_django import ContributionCandidate
+                from vran.contribution.tag_definition.queue import (
+                    dispatch_read_csv_head,
+                )
 
-            post_save.connect(
-                dispatch_read_csv_head,
-                sender=ContributionCandidate,
-                dispatch_uid="vran.start_tag_extraction",
-            )
-            from vran.merge_request.models_django import MergeRequest
-            from vran.merge_request.queue import dispatch_merge_request_queue_process
+                post_save.connect(
+                    dispatch_read_csv_head,
+                    sender=ContributionCandidate,
+                    dispatch_uid="vran.start_tag_extraction",
+                )
+                from vran.merge_request.models_django import MergeRequest
+                from vran.merge_request.queue import (
+                    dispatch_merge_request_queue_process,
+                )
 
-            post_save.connect(
-                dispatch_merge_request_queue_process,
-                sender=MergeRequest,
-                dispatch_uid="vran_merge_request_queue",
-            )
-            from django_rq import enqueue
+                post_save.connect(
+                    dispatch_merge_request_queue_process,
+                    sender=MergeRequest,
+                    dispatch_uid="vran_merge_request_queue",
+                )
+                from django_rq import enqueue
 
-            from vran.tag.models_django import TagDefinition
-            from vran.tag.queue import (
-                dispatch_tag_definition_queue_process,
-                update_tag_definition_name_path,
-            )
+                from vran.tag.models_django import TagDefinition
+                from vran.tag.queue import (
+                    dispatch_tag_definition_queue_process,
+                    update_tag_definition_name_path,
+                )
 
-            try:
-                roots = TagDefinition.most_recent_children(None)
-                for root in roots:
-                    enqueue(update_tag_definition_name_path, root.id_persistent, [])
-            except OperationalError:
-                pass  #
-            post_save.connect(
-                dispatch_tag_definition_queue_process,
-                sender=TagDefinition,
-                dispatch_uid="vran_tag_definition_queue",
-            )
+                try:
+                    roots = TagDefinition.most_recent_children(None)
+                    for root in roots:
+                        enqueue(update_tag_definition_name_path, root.id_persistent, [])
+                except OperationalError:
+                    pass  #
+                post_save.connect(
+                    dispatch_tag_definition_queue_process,
+                    sender=TagDefinition,
+                    dispatch_uid="vran_tag_definition_queue",
+                )
         except AppRegistryNotReady:
             pass
         super().ready()
