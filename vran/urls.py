@@ -9,7 +9,7 @@ from ninja.constants import NOT_SET
 from vran.contribution.api import router as contribution_router
 from vran.merge_request.api import router as merge_request_router
 from vran.person.api import router as person_router
-from vran.tag.api import router as tag_router
+from vran.tag.api.router import router as tag_router
 from vran.user.api import router as user_router
 from vran.util.auth import vran_auth
 

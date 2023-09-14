@@ -10,10 +10,12 @@ from vran.exception import ApiError, ForbiddenException, NotAuthenticatedExcepti
 from vran.merge_request.models_django import ConflictResolution
 from vran.merge_request.models_django import MergeRequest as MergeRequestDb
 from vran.person.api import PersonNatural
-from vran.tag.api.definitions import TagDefinitionResponse, tag_definition_db_to_api
+from vran.tag.api.definitions import tag_definition_db_to_api
+from vran.tag.api.models_api import TagDefinitionResponse
 from vran.tag.models_django import TagDefinition as TagDefinitionDb
 from vran.tag.models_django import TagInstance as TagInstanceDb
-from vran.user.api import PublicUserInfo, user_db_to_public_user_info
+from vran.user.api import user_db_to_public_user_info
+from vran.user.models_api import PublicUserInfo
 from vran.util.auth import check_user
 
 router = Router()

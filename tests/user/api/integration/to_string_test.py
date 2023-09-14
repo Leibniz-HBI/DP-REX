@@ -1,6 +1,6 @@
 # pylint: disable=missing-module-docstring, missing-function-docstring,redefined-outer-name,invalid-name
 from tests.user import common as c
-from vran.user.api import LoginRequest, RegisterRequest
+from vran.user.models_api import LoginRequest, RegisterRequest
 
 
 def test_login_no_password_print():

@@ -152,6 +152,42 @@ def user1(db):  # pylint: disable=unused-argument
 
 
 @pytest.fixture
+def user_commissioner(db):  # pylint: disable=unused-argument
+    try:
+        user = VranUser.objects.create_user(
+            username=cu.test_username_commissioner,
+            password=cu.test_password_commissioner,
+            email=cu.test_email_commissioner,
+            first_name=cu.test_names_personal_commissioner,
+            id_persistent=cu.test_uuid_commissioner,
+            permission_group=VranUser.COMMISSIONER,
+        )
+        return user
+    except IntegrityError:
+        return VranUser.objects.get(
+            email=cu.test_email_commissioner
+        )  # pylint: disable=no-member
+
+
+@pytest.fixture
+def user_editor(db):  # pylint: disable=unused-argument
+    try:
+        user = VranUser.objects.create_user(
+            username=cu.test_username_editor,
+            password=cu.test_password_editor,
+            email=cu.test_email_editor,
+            first_name=cu.test_names_personal_editor,
+            id_persistent=cu.test_uuid_editor,
+            permission_group=VranUser.EDITOR,
+        )
+        return user
+    except IntegrityError:
+        return VranUser.objects.get(  # pylint: disable=no-member
+            email=cu.test_email_editor
+        )
+
+
+@pytest.fixture
 def super_user(db):  # pylint: disable=unused-argument
     super_user = VranUser.objects.create_superuser(
         email=cu.test_email_super,
