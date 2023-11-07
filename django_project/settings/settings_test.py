@@ -35,7 +35,7 @@ CONTRIBUTION_DIRECTORY = "/srv/vran/contributions"
 @property
 def SECRET_KEY():  # pylint: disable=invalid-name
     "Get the secret key from environment."
-    return get_file_secret("django_key")
+    return get_file_secret("vran_django_key")
 
 
 def get_file_secret(secret_name):
