@@ -44,6 +44,7 @@ services:
       - vran_redis_password
     volumes:
       - /etc/localtime:/etc/localtime:ro
+      - /srv/vran/contributions:/srv/vran/contributions
     image: 127.0.0.1:5000/vran_django
     command: [
       "python",
@@ -68,6 +69,7 @@ services:
       - vran_db_password
       - vran_redis_password
     volumes:
+      - /srv/vran/contributions:/srv/vran/contributions
       - /etc/localtime:/etc/localtime:ro
     image: 127.0.0.1:5000/vran_django
     # command: [
