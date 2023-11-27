@@ -7,7 +7,7 @@ from ninja import NinjaAPI, Schema
 from ninja.constants import NOT_SET
 
 from vran.contribution.api import router as contribution_router
-from vran.merge_request.api import router as merge_request_router
+from vran.merge_request.router import router
 from vran.person.api import router as person_router
 from vran.tag.api.router import router as tag_router
 from vran.user.api import router as user_router
@@ -18,7 +18,7 @@ ninja_api.add_router("user", user_router, auth=NOT_SET)
 ninja_api.add_router("persons", person_router, auth=vran_auth)
 ninja_api.add_router("tags", tag_router, auth=vran_auth)
 ninja_api.add_router("contributions", contribution_router, auth=vran_auth)
-ninja_api.add_router("merge_requests", merge_request_router, auth=vran_auth)
+ninja_api.add_router("merge_requests", router, auth=vran_auth)
 
 
 class LoginRequest(Schema):

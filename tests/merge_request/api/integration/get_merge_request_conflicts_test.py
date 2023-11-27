@@ -9,7 +9,7 @@ from tests.merge_request.api.integration import requests as req
 from tests.user import common as cu
 from tests.utils import assert_versioned, format_datetime
 from vran.exception import NotAuthenticatedException
-from vran.merge_request.models_django import ConflictResolution
+from vran.merge_request.models_django import TagConflictResolution
 from vran.tag.models_django import TagDefinition, TagInstance
 
 
@@ -401,7 +401,7 @@ def test_tag_instance_destination_value_added(
     entity1,
     instances_merge_request_origin_user,
 ):
-    ConflictResolution.objects.create(  # pylint: disable=no-member
+    TagConflictResolution.objects.create(  # pylint: disable=no-member
         tag_definition_origin=origin_tag_def_for_mr,
         tag_definition_destination=destination_tag_def_for_mr,
         entity=entity1,
