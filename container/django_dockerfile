@@ -1,0 +1,15 @@
+FROM python:3.11-alpine
+RUN apk add --update --no-cache postgresql-libs && \
+		apk add --no-cache --virtual .build-deps gcc g++ musl-dev postgresql-dev
+
+ARG POETRY_VIRTUALENVS_CREATE=false
+RUN pip install --upgrade pip poetry --no-cache-dir && \
+		pip install uvicorn gunicorn "psycopg[c]==3.1.9" --no-cache-dir
+WORKDIR /vran
+COPY pyproject.toml poetry.lock /vran/
+RUN poetry install --without=dev --no-root
+ADD vran /vran/vran
+ADD django_project /vran/django_project
+COPY manage.py /vran/
+# RUN apk --purge del .build-deps
+CMD sh -c ' python3 manage.py migrate && python manage.py collectstatic --no-input && gunicorn django_project.asgi:application -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000'

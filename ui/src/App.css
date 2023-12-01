@@ -1,0 +1,215 @@
+body,
+html {
+    overflow: hidden;
+    height: 100vh;
+}
+.vran-container {
+    background-color: #eceff4;
+}
+
+.vran-page-container {
+    height: 100%;
+    width: 100%;
+    background-color: #eceff4;
+    overflow: disable;
+    display: flex;
+    flex-direction: column;
+}
+
+.vran-body {
+    width: 100%;
+    height: 100%;
+    flex-grow: 1;
+}
+
+.vran-table-page-header {
+    margin-top: 0px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+.vran-page-body {
+    display: block;
+    height: 100%;
+    flex: 1;
+    padding: 0px 12px 12px 12px;
+}
+
+.min-h-0 {
+    min-height: 0px;
+}
+.vh-85{
+    height: 85vh;
+}
+.min-h-200px {
+    min-height: 200px !important;
+}
+
+.w-200px {
+    width: 200px !important;
+}
+
+.h-50 {
+    height: 50% !important;
+}
+
+
+.flex-basis-0 {
+    flex-basis: 0;
+}
+
+.br-12 {
+    border-radius: 12px;
+}
+
+.scroll-gutter {
+    scrollbar-gutter: stable both-edges;
+}
+
+.modal,
+.modal-backdrop {
+    position: absolute !important;
+}
+
+.stepper-line {
+    flex: 1 0 32px;
+    min-width: 1px;
+    min-height: 1px;
+    margin: auto;
+    background-color: #197374;
+}
+
+.shimmer {
+    display: inline-block;
+    mask: linear-gradient(
+            -60deg,
+            #0002 0%,
+            #0006 20%,
+            #0002 40%,
+            #0006 60%,
+            #0002 80%,
+            #0006 100%
+        )
+        right/600% 100%;
+    animation: shimmer 3s infinite;
+    animation-timing-function: linear;
+    background-color: gray;
+    width: 100%;
+    height: 100%;
+}
+.me-12px {
+    margin-inline-end: 12px !important;
+}
+
+@keyframes shimmer {
+    100% {
+        mask-position: left;
+    }
+}
+
+.vran-column-add-button {
+    width: 40px;
+    display: flex;
+    flex-direction: column;
+    background-color: #f7f7f8;
+    height: 100%;
+}
+.vran-column-add-button > button {
+    border: none;
+    outline: none;
+    height: 37px;
+    width: 40px;
+    font-size: 20px;
+    background-color: #f7f7f8;
+    color: #000000;
+    border-bottom: 1px solid #e1e2e5;
+    transition: background-color 200ms;
+    cursor: pointer;
+}
+.vran-column-add-button > button:hover {
+    background-color: #efeff1;
+}
+.vran-column-menu-container,
+.vran-header-menu-container {
+    padding: 0px 0;
+    border-radius: 6px;
+    box-shadow: 0px 0px 1px rgba(62, 65, 86, 0.7), 0px 6px 12px rgba(62, 65, 86, 0.35);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+
+    background-color: #eceff4;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+span.indent {
+    margin-left: 10px;
+    margin-right: 10px;
+}
+span.icon {
+    margin-right: 5px;
+}
+
+svg {
+    vertical-align: text-bottom !important;
+}
+
+.form-label {
+    width: 100%;
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+}
+
+.form-label > input {
+    vertical-align: top;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.125);
+    width: 100%;
+    height: 32px;
+    font-size: 24px;
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+}
+
+form-control {
+    width: 100%;
+}
+
+.form-label input:focus {
+    outline: rgba(0, 0, 0, 0.125) solid 1px;
+}
+
+div#layers > div > .container {
+    padding: 8px 8px;
+}
+
+.overflow-y-auto {
+    overflow-y: auto;
+}
+.overflow-y-scroll {
+    overflow-y: scroll;
+}
+
+.nav-link {
+    cursor: pointer;
+}
+
+.nav-link.active {
+    border-bottom: 1px solid #eceff4 !important;
+}
+.pre-wrap {
+    display: inline-block;
+    white-space: pre-wrap;
+}
+
+.text-transparent {
+    color: transparent;
+}
+
+.bg-primary-subtle {
+    background-color: #d1e3e3 !important;
+}

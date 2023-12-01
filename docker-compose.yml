@@ -1,0 +1,120 @@
+secrets:
+  vran_db_password:
+    external: true
+  vran_db_user:
+    external: true
+  vran_db_name:
+    external: true
+  vran_django_key:
+    external: true
+  vran_redis_password:
+    external: true
+  vran_redis_conf:
+    external: true
+volumes:
+  vran_db_volume:
+  vran_redis_volume:
+
+services:
+  vran_ui:
+    build:
+      context: ./
+      dockerfile: container/ui_dockerfile
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /srv/vran/ssl:/etc/ssl:ro
+      - /srv/vran/acme-challenge:/srv/acme-challenge
+      - /etc/localtime:/etc/localtime:ro
+    image: 127.0.0.1:5000/vran_ui
+    # command: [nginx-debug, '-g', 'daemon off;']
+
+  vran_queue_worker:
+    build:
+      context: ./
+      dockerfile: container/django_dockerfile
+    restart: unless-stopped
+    secrets:
+      - vran_django_key
+      - vran_db_name
+      - vran_db_user
+      - vran_db_password
+      - vran_redis_password
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /srv/vran/contributions:/srv/vran/contributions
+    image: 127.0.0.1:5000/vran_django
+    command: [
+      "python",
+      "manage.py",
+      "rqworker",
+      "--with-scheduler"
+    ]
+
+  vran_django:
+    build:
+      context: ./
+      dockerfile: container/django_dockerfile
+    restart: unless-stopped
+    ports:
+      - 8000:8000
+    expose:
+      - 8000
+    secrets:
+      - vran_django_key
+      - vran_db_name
+      - vran_db_user
+      - vran_db_password
+      - vran_redis_password
+    volumes:
+      - /srv/vran/contributions:/srv/vran/contributions
+      - /etc/localtime:/etc/localtime:ro
+    image: 127.0.0.1:5000/vran_django
+    # command: [
+    #   'gunicorn',
+    #   'django_project.asgi:application',
+    #   '-k',
+    #   'uvicorn.workers.UvicornWorker',
+    #   '-b 0.0.0.0:8000',
+    #   '--log-level',
+    #   'debug'
+    # ]
+
+  vran_db:
+    container_name: vran_db
+    image: postgres:15.2
+    shm_size: 265m
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:5432:5432
+    expose:
+      - 5432
+    environment:
+    - POSTGRES_PASSWORD_FILE=/run/secrets/vran_db_password
+    - POSTGRES_USER_FILE=/run/secrets/vran_db_user
+    - POSTGRES_DB_FILE=/run/secrets/vran_db_name
+    secrets:
+    - vran_db_password
+    - vran_db_user
+    - vran_db_name
+    volumes:
+    - vran_db_volume:/var/lib/postgresql/data
+    - /etc/localtime:/etc/localtime:ro
+
+  vran_redis:
+    container_name: vran_redis
+    image: redis:7.0-alpine
+    expose:
+      - 6379
+    volumes:
+      - vran_redis_volume:/data
+      - /etc/localtime:/etc/localtime:ro
+    secrets:
+      - vran_redis_conf
+    command: [
+      "redis-server",
+      "/var/run/secrets/vran_redis_conf"
+    ]
+    restart: unless-stopped

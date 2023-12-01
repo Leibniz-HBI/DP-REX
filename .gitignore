@@ -127,3 +127,19 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# django
+*.sqlite3
+
+
+# node
+ui/node_modules
+
+
+# dev
+.vscode
+coverage
+.lcov
+.env
+.secrets
