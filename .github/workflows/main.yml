@@ -18,6 +18,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install poetry
+      - name: Install redis
+        run: |
+          curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
+          sudo apt-get update
+          sudo apt-get -y install redis
       - name: Setup Python # Set Python version
         uses: actions/setup-python@v4
         with:
@@ -32,7 +38,26 @@ jobs:
           poetry env use ${{ matrix.python-version }}
           poetry install --no-interaction
       - name: Test with pytest
-        run: poetry run pytest --cov-report html:coverage-${{ matrix.python-version }}
+        run: |
+          if [[ ${{ matrix.python-version }} == '3.9' ]]; then
+            VRAN_REDIS_PORT=6309 poetry run pytest --cov-report html:coverage-${{ matrix.python-version }}
+          fi
+          if [[ ${{ matrix.python-version }} == '3.10' ]]; then
+            VRAN_REDIS_PORT=6310 poetry run pytest --cov-report html:coverage-${{ matrix.python-version }}
+          fi
+          if [[ ${{ matrix.python-version }} == '3.11' ]]; then
+            VRAN_REDIS_PORT=6311 poetry run pytest --cov-report html:coverage-${{ matrix.python-version }}
+          fi
+        env:
+          VRAN_CI: "True"
+          VRAN_DB_NAME: ${{ secrets.VRAN_DB_NAME }}
+          VRAN_DB_USER: ${{ secrets.VRAN_DB_USER }}
+          VRAN_DB_PASSWORD: ${{ secrets.VRAN_DB_PASSWORD }}
+          VRAN_PG_CONF: ${{ secrets.VRAN_PG_CONF}}
+          VRAN_PG_SERVICE_FILE: ${{ secrets.VRAN_PG_SERVICE_FILE }}
+          VRAN_DJANGO_KEY: ${{ secrets.VRAN_DJANGO_KEY }}
+          VRAN_REDIS_PASSWORD: ""
+          VRAN_REDIS_CONF: ""
       - name: Upload pytest test results
         uses: actions/upload-artifact@v3
         with:
