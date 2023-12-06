@@ -19,7 +19,7 @@ from vran.exception import (
     TagInstanceExistsException,
     ValidationException,
 )
-from vran.merge_request.models_django import MergeRequest
+from vran.merge_request.models_django import TagMergeRequest
 from vran.tag.api.definitions import tag_definition_db_to_api
 from vran.tag.api.models_api import TagDefinitionResponse
 from vran.tag.models_django import TagInstance as TagInstanceDb
@@ -267,7 +267,7 @@ def post_tag_instances_for_entities(
         for (
             id_tag_definition_persistent
         ) in request_data.id_tag_definition_persistent_list:
-            tag_definitions = MergeRequest.get_tag_definitions_for_entities_request(
+            tag_definitions = TagMergeRequest.get_tag_definitions_for_entities_request(
                 id_tag_definition_persistent,
                 request_data.id_contribution_persistent,
                 request_data.id_merge_request_persistent,

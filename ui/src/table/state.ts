@@ -20,6 +20,7 @@ export class TableState {
     ownershipChangeTagDefinition?: TagDefinition
     showEntityAddDialog: boolean
     entityAddState: Remote<boolean>
+    showEntityMergingModal: boolean
 
     constructor({
         columnStates: columnStates = [],
@@ -36,7 +37,8 @@ export class TableState {
         submitValuesErrorState = undefined,
         ownershipChangeTagDefinition = undefined,
         showEntityAddDialog = false,
-        entityAddState = new Remote(false)
+        entityAddState = new Remote(false),
+        showEntityMergingModal = false
     }: {
         columnStates?: ColumnState[]
         columnIndices?: Map<string, number>
@@ -55,6 +57,7 @@ export class TableState {
         ownershipChangeTagDefinition?: TagDefinition
         showEntityAddDialog?: boolean
         entityAddState?: Remote<boolean>
+        showEntityMergingModal?: boolean
     }) {
         this.columnIndices = columnIndices
         this.columnStates = columnStates
@@ -81,6 +84,7 @@ export class TableState {
         this.ownershipChangeTagDefinition = ownershipChangeTagDefinition
         this.showEntityAddDialog = showEntityAddDialog
         this.entityAddState = entityAddState
+        this.showEntityMergingModal = showEntityMergingModal
     }
 
     isLoadingColumn(): boolean {
@@ -150,7 +154,8 @@ export class ColumnState {
             namePath: [],
             columnType: TagType.String,
             curated: false,
-            version: 0
+            version: 0,
+            hidden: false
         },
         cellContents = new Remote([]),
         width = 200
@@ -221,20 +226,24 @@ export interface Entity {
     idPersistent: string
     displayTxt: string
     version: number
+    disabled: boolean
 }
 
 export function newEntity({
     idPersistent,
     displayTxt,
-    version
+    version,
+    disabled
 }: {
     idPersistent: string
     displayTxt: string
     version: number
+    disabled: boolean
 }) {
     return {
         idPersistent: idPersistent,
         displayTxt: displayTxt,
-        version: version
+        version: version,
+        disabled: disabled
     }
 }
