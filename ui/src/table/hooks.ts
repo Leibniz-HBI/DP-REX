@@ -25,7 +25,8 @@ import {
     TableAction,
     TagChangeOwnershipHideAction,
     TagChangeOwnershipShowAction,
-    TagDefinitionChangeAction
+    TagDefinitionChangeAction,
+    ToggleEntityModalAction
 } from './actions'
 import {
     CurateAction,
@@ -165,6 +166,8 @@ export type LocalTableCallbacks = {
     showEntityAddMenuCallback: VoidFunction
     hideEntityAddMenuCallback: VoidFunction
     clearEntityChangeErrorCallback: VoidFunction
+    showEntityMergingModalCallback: VoidFunction
+    hideEntityMergingModalCallback: VoidFunction
 }
 export type TableDataProps = {
     entities?: Entity[]
@@ -180,6 +183,7 @@ export type TableDataProps = {
     tagDefinitionChangeOwnership?: TagDefinition
     showEntityAddMenu: boolean
     entityAddState: Remote<boolean>
+    showEntityMergingModal: boolean
 }
 
 export interface ColumnHeaderMenuItem {
@@ -293,7 +297,12 @@ export function useRemoteTableData(
                 )
             },
             addEntityCallback: (displayTxt) =>
-                dispatch(new EntityChangeOrCreateAction({ displayTxt: displayTxt }))
+                dispatch(
+                    new EntityChangeOrCreateAction({
+                        displayTxt: displayTxt,
+                        disabled: false
+                    })
+                )
         },
         {
             cellContentCallback: useCellContentCallback(state),
@@ -357,7 +366,11 @@ export function useRemoteTableData(
             hideEntityAddMenuCallback: () =>
                 dispatch(new ShowEntityAddDialogAction(false)),
             clearEntityChangeErrorCallback: () =>
-                dispatch(new EntityChangeOrCreateClearErrorAction())
+                dispatch(new EntityChangeOrCreateClearErrorAction()),
+            showEntityMergingModalCallback: () =>
+                dispatch(new ToggleEntityModalAction(true)),
+            hideEntityMergingModalCallback: () =>
+                dispatch(new ToggleEntityModalAction(false))
         },
         {
             entities: state.entities,
@@ -372,7 +385,8 @@ export function useRemoteTableData(
             columnHeaderMenuEntries: columnMenuEntries,
             tagDefinitionChangeOwnership: state.ownershipChangeTagDefinition,
             showEntityAddMenu: state.showEntityAddDialog,
-            entityAddState: state.entityAddState
+            entityAddState: state.entityAddState,
+            showEntityMergingModal: state.showEntityMergingModal
         }
     ]
 }

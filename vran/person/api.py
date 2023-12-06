@@ -31,6 +31,7 @@ class PersonNatural(Schema):
     """The version of the person that the change is made on.
     If null on POST, a new person is created."""
     id_persistent: Optional[str]
+    disabled: Optional[bool]
 
 
 class PersonNaturalList(Schema):
@@ -131,6 +132,31 @@ def persons_chunks_post(_, req_data: ChunkRequest):
         return 500, ApiError(msg="Could not get requested chunk.")
 
 
+@router.post(
+    "{id_entity_source_persistent}/merge/{id_entity_destination_persistent}",
+    response={400: ApiError, 401: ApiError, 403: ApiError, 500: ApiError},
+)
+def merge_entities(
+    request: HttpRequest,
+    id_entity_source_persistent: str,
+    id_entity_destination_persistent: str,
+):
+    "Initializes merging of two entities."
+    try:
+        user = check_user(request)
+    except NotAuthenticatedException:
+        return 401, ApiError(msg="Not authenticated")
+    if user.permission_group not in [VranUser.EDITOR, VranUser.COMMISSIONER]:
+        return 403, ApiError(msg="Insufficient permissions.")
+    entity_source = EntityDb.most_recent_by_id(id_entity_source_persistent)
+    if entity_source.disabled:
+        return 400, ApiError(msg="Source entity is disabled.")
+    entity_destination = EntityDb.most_recent_by_id(id_entity_destination_persistent)
+    if entity_destination.disabled:
+        return 400, ApiError(msg="Destination entity is disabled.")
+    return 400, ApiError
+
+
 def person_api_to_db(person: PersonNatural, time_edit: datetime) -> EntityDb:
     """Transform an natural person from API to DB model."""
     if person.id_persistent:
@@ -152,6 +178,7 @@ def person_api_to_db(person: PersonNatural, time_edit: datetime) -> EntityDb:
         time_edit=time_edit,
         id_persistent=persistent_id,
         version=person.version,
+        disabled=person.disabled or False,
     )
 
 
@@ -161,4 +188,5 @@ def person_db_to_api(person: EntityDb) -> PersonNatural:
         display_txt=person.display_txt,
         version=person.id,
         id_persistent=person.id_persistent,
+        disabled=person.disabled,
     )

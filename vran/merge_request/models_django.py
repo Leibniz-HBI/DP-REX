@@ -7,78 +7,41 @@ from django.db import models
 
 from vran.contribution.models_django import ContributionCandidate
 from vran.entity.models_django import Entity
-from vran.exception import ForbiddenException
+from vran.merge_request.entity.models_django import (
+    AbstractConflictResolution,
+    AbstractMergeRequest,
+)
 from vran.tag.models_django import TagDefinition, TagInstance
 from vran.util import VranUser
 
 
-class MergeRequest(models.Model):
+class TagMergeRequest(AbstractMergeRequest):
     "Django model for a merge request."
-    OPEN = "OPN"
-    CONFLICTS = "CNF"
-    CLOSED = "CLS"
-    RESOLVED = "RSL"
-    MERGED = "MRG"
-    ERROR = "ERR"
-    STATE_CHOICES = [
-        (OPEN, "open"),
-        (CONFLICTS, "conflicts"),
-        (CLOSED, "closed"),
-        (RESOLVED, "resolved"),
-        (MERGED, "merged"),
-        (ERROR, "error"),
-    ]
-    id_destination_persistent = models.TextField()
-    id_origin_persistent = models.TextField()
-    created_by = models.ForeignKey(
-        "VranUser", related_name="created_merge_requests", on_delete=models.CASCADE
-    )
+
     assigned_to = models.ForeignKey(
         "VranUser",
-        related_name="assigned_merge_requests",
+        related_name="+",
         null=True,
         blank=True,
         on_delete=models.CASCADE,
     )
-    created_at = models.DateTimeField()
-    id_persistent = models.UUIDField(primary_key=True)
     contribution_candidate = models.ForeignKey(
         "ContributionCandidate",
         on_delete=models.CASCADE,
         blank=True,
         null=True,
     )
-    state = models.TextField(max_length=3, choices=STATE_CHOICES, default=OPEN)
-
-    @classmethod
-    def created_by_user(cls, user: VranUser):
-        "Get all merge requests created by a user"
-        return MergeRequest.objects.filter(  # pylint: disable=no-member
-            created_by=user,
-            state__in=[MergeRequest.OPEN, MergeRequest.CONFLICTS, MergeRequest.ERROR],
-        )
 
     @classmethod
     def assigned_to_user(cls, user: VranUser):
         "Get all merge requests assigned to a user"
-        return MergeRequest.objects.filter(  # pylint: disable=no-member
+        return TagMergeRequest.objects.filter(  # pylint: disable=no-member
             assigned_to=user,
-            state__in=[MergeRequest.OPEN, MergeRequest.CONFLICTS, MergeRequest.ERROR],
-        )
-
-    @classmethod
-    def by_id_persistent(cls, id_persistent: str, user: VranUser):
-        "Get a merge request by id_persistent"
-        merge_request = cls.by_id_persistent_query_set(id_persistent).get()
-        if merge_request.has_read_access(user):
-            return merge_request
-        raise ForbiddenException("merge request", merge_request.id_persistent)
-
-    @classmethod
-    def by_id_persistent_query_set(cls, id_persistent: str):
-        "Query set containing the the merge request referenced by the id give as argument."
-        return cls.objects.filter(  # pylint: disable=no-member
-            id_persistent=id_persistent
+            state__in=[
+                TagMergeRequest.OPEN,
+                TagMergeRequest.CONFLICTS,
+                TagMergeRequest.ERROR,
+            ],
         )
 
     def has_read_access(self, user: VranUser):
@@ -104,7 +67,7 @@ class MergeRequest(models.Model):
         if id_contribution_persistent is None:
             if id_merge_request_persistent is None:
                 return {(id_tag_definition_persistent, True)}
-            merge_request = MergeRequest.by_id_persistent(
+            merge_request = TagMergeRequest.by_id_persistent(
                 id_merge_request_persistent, user
             )
             if merge_request.contribution_candidate:
@@ -122,7 +85,7 @@ class MergeRequest(models.Model):
             contribution = ContributionCandidate.by_id_persistent(
                 id_contribution_persistent, user
             ).get()
-        merge_requests_manager = contribution.mergerequest_set
+        merge_requests_manager = contribution.tagmergerequest_set
         for merge_request in merge_requests_manager.iterator():
             if (
                 # pylint:disable-next=consider-using-in
@@ -145,7 +108,7 @@ class MergeRequest(models.Model):
     def instance_conflicts_all(
         self,
         include_resolved: bool = False,
-        resolution_values: Optional[models.BaseManager[ConflictResolution]] = None,
+        resolution_values: Optional[models.BaseManager[TagConflictResolution]] = None,
     ):
         """Get conflicts to merging the origin tag referenced by the merge request
         into the destination tag"""
@@ -174,7 +137,7 @@ class MergeRequest(models.Model):
 
         if resolution_values is None:
             resolution_values = (
-                ConflictResolution.objects.none()  # pylint: disable=no-member
+                TagConflictResolution.objects.none()  # pylint: disable=no-member
             )
         resolutions_sub_query = resolution_values.filter(
             tag_definition_origin__id_persistent=models.OuterRef(
@@ -206,7 +169,7 @@ class MergeRequest(models.Model):
         return with_conflict_info.exclude(conflict_resolution_replace__isnull=False)
 
 
-class ConflictResolution(models.Model):
+class TagConflictResolution(AbstractConflictResolution):
     "Django ORM model for resolutions to merge request conflicts."
 
     # do not use persistent ids in order to allow change detection.
@@ -214,22 +177,14 @@ class ConflictResolution(models.Model):
     tag_definition_destination = models.ForeignKey(
         TagDefinition, on_delete=models.CASCADE, related_name="+"
     )
-    tag_instance_destination = models.ForeignKey(
-        TagInstance, on_delete=models.CASCADE, related_name="+", null=True, blank=True
-    )
     tag_definition_origin = models.ForeignKey(
         TagDefinition, on_delete=models.CASCADE, related_name="+"
     )
-    tag_instance_origin = models.ForeignKey(
-        TagInstance,
-        on_delete=models.CASCADE,
-        related_name="+",
-    )
-    merge_request = models.ForeignKey(MergeRequest, on_delete=models.CASCADE)
+    merge_request = models.ForeignKey(TagMergeRequest, on_delete=models.CASCADE)
     replace = models.BooleanField()
 
     @classmethod
-    def for_merge_request_query_set(cls, merge_request: MergeRequest):
+    def for_merge_request_query_set(cls, merge_request: TagMergeRequest):
         "Get resolutions for a merge request."
         return cls.objects.filter(  # pylint: disable=no-member
             merge_request=merge_request
@@ -247,11 +202,12 @@ class ConflictResolution(models.Model):
                     id_persistent=models.OuterRef("entity__id_persistent")
                 )
                 .order_by(models.F("previous_version").desc(nulls_last=True))
-                .values(
+                .values(  # pylint: disable=duplicate-code
                     json=models.functions.JSONObject(
                         id="id",
                         id_persistent="id_persistent",
                         display_txt="display_txt",
+                        disabled="disabled",
                     )
                 )[:1]
             ),
@@ -262,7 +218,7 @@ class ConflictResolution(models.Model):
                     )
                 )
                 .order_by(models.F("previous_version").desc(nulls_last=True))
-                .values(
+                .values(  # pylint: disable=duplicate-code
                     json=models.functions.JSONObject(
                         id="id",
                         id_persistent="id_persistent",

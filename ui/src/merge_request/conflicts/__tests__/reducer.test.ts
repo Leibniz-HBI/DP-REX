@@ -17,7 +17,7 @@ import {
     MergeRequestConflict,
     MergeRequestConflictResolutionState,
     MergeRequestConflictsByState,
-    TagInstance
+    newTagInstance
 } from '../state'
 import { TagType, newTagDefinition } from '../../../column_menu/state'
 import { MergeRequest, MergeRequestStep } from '../../state'
@@ -41,14 +41,15 @@ const sharedConflict1 = new Remote(
         entity: newEntity({
             idPersistent: 'id-entity-test1',
             displayTxt: 'test entity1',
-            version: 81
+            version: 81,
+            disabled: false
         }),
-        tagInstanceOrigin: new TagInstance({
+        tagInstanceOrigin: newTagInstance({
             idPersistent: 'id-instance-origin-test1',
             version: 12,
             value: 'value test origin'
         }),
-        tagInstanceDestination: new TagInstance({
+        tagInstanceDestination: newTagInstance({
             idPersistent: 'id-instance-destination-test1',
             version: 121,
             value: 'value test destination1'
@@ -60,14 +61,15 @@ const sharedConflict = new Remote(
         entity: newEntity({
             idPersistent: 'id-entity-test',
             displayTxt: 'test entity',
-            version: 8
+            version: 8,
+            disabled: false
         }),
-        tagInstanceOrigin: new TagInstance({
+        tagInstanceOrigin: newTagInstance({
             idPersistent: 'id-instance-origin-test',
             version: 12,
             value: 'value test origin'
         }),
-        tagInstanceDestination: new TagInstance({
+        tagInstanceDestination: newTagInstance({
             idPersistent: 'id-instance-destination-test',
             version: 12,
             value: 'value test destination'
@@ -81,14 +83,15 @@ const conflicts = [
             entity: newEntity({
                 idPersistent: 'id-entity-test2',
                 displayTxt: 'test entity2',
-                version: 82
+                version: 82,
+                disabled: false
             }),
-            tagInstanceOrigin: new TagInstance({
+            tagInstanceOrigin: newTagInstance({
                 idPersistent: 'id-instance-origin-test2',
                 version: 122,
                 value: 'value test origin2'
             }),
-            tagInstanceDestination: new TagInstance({
+            tagInstanceDestination: newTagInstance({
                 idPersistent: 'id-instance-destination-test2',
                 version: 122,
                 value: 'value test destination2'
@@ -101,14 +104,15 @@ const conflicts = [
             entity: newEntity({
                 idPersistent: 'id-entity-test3',
                 displayTxt: 'test entity3',
-                version: 83
+                version: 83,
+                disabled: false
             }),
-            tagInstanceOrigin: new TagInstance({
+            tagInstanceOrigin: newTagInstance({
                 idPersistent: 'id-instance-origin-test3',
                 version: 123,
                 value: 'value test origin3'
             }),
-            tagInstanceDestination: new TagInstance({
+            tagInstanceDestination: newTagInstance({
                 idPersistent: 'id-instance-destination-test3',
                 version: 123,
                 value: 'value test destination3'
@@ -122,14 +126,16 @@ const tagDefOrigin = newTagDefinition({
     idPersistent: 'id-tag-def-origin-test',
     curated: false,
     version: 84,
-    columnType: TagType.String
+    columnType: TagType.String,
+    hidden: false
 })
 const tagDefDestination = newTagDefinition({
     namePath: ['tag def destination test'],
     idPersistent: 'id-tag-def-destination-test',
     curated: false,
     version: 841,
-    columnType: TagType.String
+    columnType: TagType.String,
+    hidden: false
 })
 describe('get conflicts', () => {
     test('start loading', () => {

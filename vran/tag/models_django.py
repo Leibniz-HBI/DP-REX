@@ -11,6 +11,7 @@ from vran.entity.models_django import Entity
 from vran.exception import (
     DbObjectExistsException,
     EntityMissingException,
+    ForbiddenException,
     InvalidTagValueException,
     NoParentTagException,
     TagDefinitionExistsException,
@@ -40,6 +41,7 @@ class TagDefinition(models.Model):
         "VranUser", null=True, blank=True, on_delete=models.SET_NULL
     )
     curated = models.BooleanField(default=False)
+    hidden = models.BooleanField(default=False)
 
     def set_curated(self, time_edit):
         "Set curated state for a tag definition."
@@ -78,21 +80,28 @@ class TagDefinition(models.Model):
         ).order_by(models.F("previous_version").desc(nulls_last=True))[:1]
 
     @classmethod
-    def most_recent_children(cls, id_persistent: Optional[str]):
-        "Ge the most recent versions of child tags."
-        objects = TagDefinition.objects.filter(  # pylint: disable=no-member
-            id_parent_persistent=id_persistent
-        )
-        return list(
-            objects.filter(
-                id=models.Subquery(
-                    objects.filter(id_persistent=models.OuterRef("id_persistent"))
-                    .values("id_persistent")
-                    .annotate(max_id=Max("id"))
-                    .values("max_id")
+    def most_recent_query_set(cls, manager=None, include_hidden=False):
+        "Get a query set containing all most recent tag definitions."
+        if manager is None:
+            manager = cls.objects  # pylint: disable=no-member
+        most_recent = manager.annotate(
+            id_most_recent=models.Subquery(
+                cls.objects.filter(  # pylint: disable=no-member
+                    id_persistent=models.OuterRef("id_persistent")
                 )
+                .order_by(models.F("previous_version").desc(nulls_last=True))
+                .values("id")[:1]
             )
-        )
+        ).filter(id=models.F("id_most_recent"))
+        if include_hidden:
+            return most_recent
+        return most_recent.filter(hidden=False)
+
+    @classmethod
+    def most_recent_children(cls, id_persistent: Optional[str]):
+        "Get the most recent versions of child tags."
+        most_recent = cls.most_recent_query_set()
+        return list(most_recent.filter(id_parent_persistent=id_persistent))
 
     @classmethod
     def change_or_create(  # pylint: disable=too-many-arguments
@@ -156,20 +165,17 @@ class TagDefinition(models.Model):
     def check_different_before_save(self, other):
         """Checks structural equality for two tag definitions.
         Note:
-            * The version fields are not comapred as this check is intended to
+            * The version fields are not compared as this check is intended to
                prevent unnecessary writes.
             * The time_edit fields are not compared as the operation is invalid."""
-        if other.name != self.name:
-            return True
-        if other.id_parent_persistent != self.id_parent_persistent:
-            return True
-        if other.type != self.type:
-            return True
-        if other.owner != self.owner:
-            return True
-        if other.curated != self.curated:
-            return True
-        return False
+        return (
+            other.name != self.name
+            or other.id_parent_persistent != self.id_parent_persistent
+            or other.type != self.type
+            or other.owner != self.owner
+            or other.curated != self.curated
+            or other.hidden != self.hidden
+        )
 
     def check_value(self, val: str):
         "Check if a value is of the type for this tag."
@@ -189,17 +195,17 @@ class TagDefinition(models.Model):
         return val
 
     @classmethod
-    def for_user(cls, user: VranUser):
+    def for_user(cls, user: VranUser, include_curated=False):
         "Get all tag definitions for a user."
-        objects = cls.objects.filter(owner=user)  # pylint: disable=no-member
-        return objects.filter(
-            id=models.Subquery(
-                objects.filter(id_persistent=models.OuterRef("id_persistent"))
-                .values("id_persistent")
-                .annotate(max_id=Max("id"))
-                .values("max_id")
-            )
-        )
+        most_recent = cls.most_recent_query_set()
+        if include_curated:
+            if not user.permission_group in [
+                VranUser.EDITOR,
+                VranUser.COMMISSIONER,
+            ]:
+                raise ForbiddenException("Tag Definition", "")
+            return most_recent.filter(models.Q(curated=True) | models.Q(owner=user))
+        return most_recent.filter(owner=user)
 
     def has_write_access(self, user: VranUser):
         "Check wether a user can write to the tag definition."
@@ -361,11 +367,39 @@ class TagInstance(models.Model):
         ).order_by(models.F("previous_version").desc(nulls_last=True))[:1]
         return manager.annotate(
             entity=models.Subquery(
+                # pylint: disable=duplicate-code
                 entity_sub_query.values(
                     json=models.functions.JSONObject(
                         id="id",
                         id_persistent="id_persistent",
                         display_txt="display_txt",
+                        disabled="disabled",
+                    )
+                )
+            ),
+        )
+
+    @classmethod
+    def annotate_tag_definition(
+        cls, manager: Optional[models.BaseManager[TagInstance]]
+    ):
+        "Annotate tag instances with the most recent tag definition and tag instance"
+        if manager is None:
+            manager = TagInstance.objects  # pylint: disable=no-member
+        tag_def_sub_query = TagDefinition.objects.filter(  # pylint: disable=no-member
+            id_persistent=models.OuterRef("id_tag_definition_persistent")
+        ).order_by(models.F("previous_version").desc(nulls_last=True))[:1]
+        return manager.annotate(
+            tag_definition=models.Subquery(
+                # pylint: disable=duplicate-code
+                tag_def_sub_query.values(
+                    json=models.functions.JSONObject(
+                        id="id",
+                        id_persistent="id_persistent",
+                        id_parent_persistent="id_parent_persistent",
+                        name="name",
+                        type="type",
+                        curated="curated",
                     )
                 )
             ),
@@ -440,6 +474,7 @@ class OwnershipRequest(models.Model):
                         permission_group="owner__permission_group",
                     ),
                     curated="curated",
+                    hidden="hidden",
                 )
             )
         )

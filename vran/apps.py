@@ -100,14 +100,14 @@ class VranConfig(AppConfig):
                     sender=ContributionCandidate,
                     dispatch_uid="vran.start_tag_extraction",
                 )
-                from vran.merge_request.models_django import MergeRequest
+                from vran.merge_request.models_django import TagMergeRequest
                 from vran.merge_request.queue import (
                     dispatch_merge_request_queue_process,
                 )
 
                 post_save.connect(
                     dispatch_merge_request_queue_process,
-                    sender=MergeRequest,
+                    sender=TagMergeRequest,
                     dispatch_uid="vran_merge_request_queue",
                 )
                 from django_rq import enqueue

@@ -23,6 +23,7 @@ class Entity(models.Model):
     contribution_candidate = models.ForeignKey(
         "ContributionCandidate", blank=True, null=True, on_delete=models.CASCADE
     )
+    disabled = models.BooleanField(default=False)
 
     class Meta:
         "Meta class for entity model"
@@ -44,6 +45,23 @@ class Entity(models.Model):
         return cls.objects.filter(id_persistent=id_persistent).order_by(
             models.F("previous_version").desc(nulls_last=True)
         )[0]
+
+    @classmethod
+    def most_recent_queryset(cls, manager=None, include_disabled=False):
+        "Return most recent versions of all_tag_instances"
+        if manager is None:
+            manager = cls.objects  # pylint: disable=no-member
+        most_recent = manager.filter(
+            id=models.Subquery(
+                manager.filter(id_persistent=models.OuterRef("id_persistent"))
+                .values("id_persistent")
+                .annotate(max_id=Max("id"))
+                .values("max_id")
+            )
+        )
+        if include_disabled:
+            return most_recent
+        return most_recent.filter(disabled=False)
 
     @classmethod
     def change_or_create(
@@ -74,9 +92,11 @@ class Entity(models.Model):
             raise DbObjectExistsException(display_txt) from exc
 
     @classmethod
-    def most_recent(cls, manager):
+    def most_recent(cls, manager=None, include_disabled=False):
         "Get all most recent entities"
-        return manager.filter(
+        if manager is None:
+            manager = cls.objects  # pylint: disable=no-member
+        most_recent = manager.filter(
             id=models.Subquery(
                 manager.filter(id_persistent=models.OuterRef("id_persistent"))
                 .values("id_persistent")
@@ -84,13 +104,13 @@ class Entity(models.Model):
                 .values("max_id")
             )
         )
+        if include_disabled:
+            return most_recent
+        return most_recent.filter(disabled=False)
 
     @classmethod
     def get_most_recent_chunked(cls, offset, limit, manager=None):
         """Get all entities in chunks"""
-        # pylint: disable=no-member
-        if manager is None:
-            manager = cls.objects
         return cls.most_recent(manager)[offset : offset + limit]
 
     def save(self, *args, **kwargs):
@@ -108,5 +128,7 @@ class Entity(models.Model):
         if other.id_persistent != self.id_persistent:
             return True
         if other.display_txt != self.display_txt:
+            return True
+        if other.disabled != self.disabled:
             return True
         return False
