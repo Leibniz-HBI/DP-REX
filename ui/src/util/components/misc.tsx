@@ -3,13 +3,7 @@ import { Remote, RemoteInterface } from '../state'
 import { ReactNode } from 'react'
 
 export function VrAnLoading() {
-    return (
-        <div className="vran-table-container-outer">
-            <div className="vran-table-container-inner">
-                <div className="shimmer"></div>
-            </div>
-        </div>
-    )
+    return <div className="shimmer h-100 v-100"></div>
 }
 
 export function RemoteTriggerButton({
