@@ -11,7 +11,21 @@ jobs:
     strategy:
       matrix:
         python-version: [ "3.9", "3.10", "3.11"]
-
+    services:
+      postgres:
+        image: postgres:15.4
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: vran_db_user_ci
+          POSTGRES_PASSWORD: vran_db_password_ci
+          POSTGRES_DB: vran_data_ci
+      # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v3
       - name: Install poetry
@@ -40,21 +54,21 @@ jobs:
       - name: Test with pytest
         run: |
           if [[ ${{ matrix.python-version }} == '3.9' ]]; then
-            VRAN_REDIS_PORT=6309 poetry run pytest --cov-report html:coverage-${{ matrix.python-version }}
+            VRAN_REDIS_PORT=6309 poetry run pytest -c pytest_ci.ini --cov-report html:coverage-${{ matrix.python-version }}
           fi
           if [[ ${{ matrix.python-version }} == '3.10' ]]; then
-            VRAN_REDIS_PORT=6310 poetry run pytest --cov-report html:coverage-${{ matrix.python-version }}
+            VRAN_REDIS_PORT=6310 poetry run pytest -c pytest_ci.ini --cov-report html:coverage-${{ matrix.python-version }}
           fi
           if [[ ${{ matrix.python-version }} == '3.11' ]]; then
-            VRAN_REDIS_PORT=6311 poetry run pytest --cov-report html:coverage-${{ matrix.python-version }}
+            VRAN_REDIS_PORT=6311 poetry run pytest -c pytest_ci.ini --cov-report html:coverage-${{ matrix.python-version }}
           fi
         env:
           VRAN_CI: "True"
-          VRAN_DB_NAME: ${{ secrets.VRAN_DB_NAME }}
-          VRAN_DB_USER: ${{ secrets.VRAN_DB_USER }}
-          VRAN_DB_PASSWORD: ${{ secrets.VRAN_DB_PASSWORD }}
-          VRAN_PG_CONF: ${{ secrets.VRAN_PG_CONF}}
-          VRAN_PG_SERVICE_FILE: ${{ secrets.VRAN_PG_SERVICE_FILE }}
+          VRAN_DB_NAME: vran_data_ci
+          VRAN_DB_USER: vran_db_user_ci
+          VRAN_DB_PASSWORD: vran_db_password_ci
+          VRAN_PG_CONF: localhost:5432:vran_data_ci:vran_db_user_ci:vran_db_password_ci
+          VRAN_PG_SERVICE_FILE: "[vran_service]\nhost=localhost\nuser=vran_db_user_ci\ndbname=vran_data_ci\nport=5432"
           VRAN_DJANGO_KEY: ${{ secrets.VRAN_DJANGO_KEY }}
           VRAN_REDIS_PASSWORD: ""
           VRAN_REDIS_CONF: ""
