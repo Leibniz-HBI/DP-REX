@@ -23,6 +23,8 @@ from vran.merge_request.models_django import TagMergeRequest
 from vran.tag.api.definitions import tag_definition_db_to_api
 from vran.tag.api.models_api import TagDefinitionResponse
 from vran.tag.models_django import TagInstance as TagInstanceDb
+from vran.tag.models_django import TagInstanceAbstract as TagInstanceAbstractDb
+from vran.tag.models_django import TagInstanceHistory as TagInstanceHistoryDb
 from vran.util import VranUser
 from vran.util.auth import check_user
 from vran.util.django import save_many_atomic
@@ -314,7 +316,7 @@ def tag_instance_api_to_db(tag_api: TagInstancePost, user: VranUser, time: datet
                 f"value {tag_api.value} has version but no id_persistent."
             )
         persistent_id = str(uuid4())
-    return TagInstanceDb.change_or_create(
+    return TagInstanceHistoryDb.change_or_create(
         id_persistent=persistent_id,
         id_entity_persistent=tag_api.id_entity_persistent,
         id_tag_definition_persistent=tag_api.id_tag_definition_persistent,
@@ -325,7 +327,7 @@ def tag_instance_api_to_db(tag_api: TagInstancePost, user: VranUser, time: datet
     )
 
 
-def tag_instance_db_to_api(tag_db: TagInstanceDb) -> TagInstancePost:
+def tag_instance_db_to_api(tag_db: TagInstanceAbstractDb) -> TagInstancePost:
     "Convert tag instances from database to API representation."
     return TagInstancePost(
         id_persistent=tag_db.id_persistent,
@@ -336,7 +338,9 @@ def tag_instance_db_to_api(tag_db: TagInstanceDb) -> TagInstancePost:
     )
 
 
-def tag_instance_with_existing_db_to_api(tag_db: TagInstanceDb) -> TagInstancePost:
+def tag_instance_with_existing_db_to_api(
+    tag_db: TagInstanceAbstractDb,
+) -> TagInstancePost:
     "Convert tag instances from database to API representation."
     return TagInstanceValueWithExistingFlagResponse(
         id_persistent=tag_db.id_persistent,
