@@ -96,11 +96,11 @@ def get_file_secret(secret_name):
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "vran_db_ci",  # get_file_secret("vran_db_name"),
-        "USER": "vran_db_user_ci",  # get_file_secret("vran_db_user"),
-        "PASSWORD": "vran_db_password_ci",  # get_file_secret("vran_db_password"),
-        "HOST": "postgres",
-        "PORT": "5555",
+        "NAME": get_file_secret("vran_db_name"),
+        "USER": get_file_secret("vran_db_user"),
+        "PASSWORD": get_file_secret("vran_db_password"),
+        "HOST": "localhost",
+        "PORT": "5444",
     }
 }
 
