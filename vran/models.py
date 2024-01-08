@@ -7,6 +7,7 @@ from vran.contribution.tag_definition.models_django import (
     TagInstanceContribution,
 )
 from vran.entity.models_django import Entity
+from vran.management.models_django import ConfigValue
 from vran.merge_request.entity.models_django import (
     EntityConflictResolution,
     EntityMergeRequest,
