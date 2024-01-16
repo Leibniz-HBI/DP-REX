@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import tests.management.display_txt.api.integration.requests as req
 import tests.tag.common as ct
 from vran.exception import NotAuthenticatedException
-from vran.management.display_txt.api import DISPLAY_TXT_ORDER_CONFIG_KEY
+from vran.management.display_txt.util import DISPLAY_TXT_ORDER_CONFIG_KEY
 from vran.management.models_django import ConfigValue
 
 
