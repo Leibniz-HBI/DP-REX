@@ -9,6 +9,7 @@ from django.db.utils import OperationalError
 from vran.contribution.entity.models_django import EntityDuplicate
 from vran.contribution.models_django import ContributionCandidate
 from vran.entity.models_django import Entity
+from vran.entity.queue import update_display_txt_cache
 from vran.merge_request.queue import merge_request_fast_forward
 from vran.tag.models_django import TagInstance, TagInstanceHistory
 from vran.util import timestamp
@@ -85,6 +86,8 @@ def update_tag_instances(tag_instances_with_duplicates, user, time_edit):
     TagInstanceHistory.objects.bulk_create(  # pylint: disable=no-member
         updated_tag_instances
     )
+    for tag_instance in updated_tag_instances:
+        django_rq.enqueue(update_display_txt_cache, tag_instance.id_entity_persistent)
 
 
 def annotate_with_replacement_info(manager, replacements, id_entity_field_name):

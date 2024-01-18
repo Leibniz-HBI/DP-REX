@@ -12,6 +12,8 @@ from tests.tag import common as ct
 from tests.user import common as cu
 from tests.user.api.integration.requests import post_login, post_register
 from vran.entity.models_django import Entity
+from vran.management.display_txt.util import DISPLAY_TXT_ORDER_CONFIG_KEY
+from vran.management.models_django import ConfigValue
 from vran.tag.models_django import TagDefinition
 from vran.util import VranUser
 
@@ -244,3 +246,17 @@ redis_fixture = factories.redis_proc(port=redis_port)
 @pytest.fixture(autouse=True, scope="session")
 def redis(redis_fixture):
     return redis_fixture
+
+
+@pytest.fixture
+def display_txt_order_0(tag_def):
+    ConfigValue.append_to_list(DISPLAY_TXT_ORDER_CONFIG_KEY, tag_def.id_persistent)
+
+
+@pytest.fixture
+def display_txt_order_0_1_curated(tag_def, tag_def1, tag_def_curated):
+    ConfigValue.append_to_list(DISPLAY_TXT_ORDER_CONFIG_KEY, tag_def.id_persistent)
+    ConfigValue.append_to_list(DISPLAY_TXT_ORDER_CONFIG_KEY, tag_def1.id_persistent)
+    ConfigValue.append_to_list(
+        DISPLAY_TXT_ORDER_CONFIG_KEY, tag_def_curated.id_persistent
+    )

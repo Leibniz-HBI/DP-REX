@@ -14,7 +14,7 @@ class Entity(models.Model):
     """Model for a general entity"""
 
     proxy_name = models.TextField()
-    display_txt = models.TextField()
+    display_txt = models.TextField(blank=True, null=True)
     time_edit = models.DateTimeField()
     id_persistent = models.TextField(null=False, blank=False)
     previous_version = models.ForeignKey(
@@ -68,7 +68,7 @@ class Entity(models.Model):
         cls,
         id_persistent: str,
         time_edit: datetime,
-        display_txt: str,
+        display_txt: Optional[str] = None,
         version: Optional[int] = None,
         **kwargs,
     ):
@@ -125,10 +125,10 @@ class Entity(models.Model):
             * The proxy_type fields are not compared as they are only set
               before writing to the DB.
             * The time_edit fields are not compared as the operation is invalid."""
-        if other.id_persistent != self.id_persistent:
-            return True
-        if other.display_txt != self.display_txt:
-            return True
-        if other.disabled != self.disabled:
-            return True
-        return False
+        return (
+            other.id_persistent != self.id_persistent
+            or other.display_txt != self.display_txt
+            or other.disabled != self.disabled
+            or other.contribution_candidate_id
+            != self.contribution_candidate_id  # pylint: disable=no-member
+        )
