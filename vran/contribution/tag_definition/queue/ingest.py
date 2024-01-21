@@ -11,6 +11,7 @@ from vran.contribution.models_django import ContributionCandidate
 from vran.contribution.tag_definition.models_django import TagDefinitionContribution
 from vran.contribution.tag_definition.queue.util import read_csv_of_candidate
 from vran.entity.models_django import Entity
+from vran.exception import TagDefinitionExistsException
 from vran.merge_request.models_django import TagMergeRequest
 from vran.tag.models_django import TagDefinition, TagInstanceHistory
 
@@ -45,7 +46,7 @@ def is_row_empty(
 
 
 def ingest_values_from_csv(id_contribution_persistent):
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     "Reads values from a csv files according to column assignments of a contribution candidate"
 
     contribution_query = (
@@ -75,17 +76,35 @@ def ingest_values_from_csv(id_contribution_persistent):
                     tag_definition_destination = TagDefinition.most_recent_by_id(
                         column_assignment.id_existing_persistent
                     )
-                    tag_definition_origin, _ = TagDefinition.change_or_create(
-                        id_persistent=str(uuid4()),
-                        name=tag_definition_destination.name
+                    merge_request_base_name = (
+                        tag_definition_destination.name
                         + " Merge Request "
-                        + contribution.name,
-                        id_parent_persistent=tag_definition_destination.id_persistent,
-                        type=tag_definition_destination.type,
-                        time_edit=time_add,
-                        owner=contribution.created_by,
+                        + contribution.name
                     )
-                    tag_definition_origin.save()
+                    merge_request_name = merge_request_base_name
+                    tag_definition_origin = None
+                    id_tag_definition_origin_persistent = str(uuid4())
+                    for idx in range(1, 10):
+                        try:
+                            tag_definition_origin, _ = TagDefinition.change_or_create(
+                                id_persistent=id_tag_definition_origin_persistent,
+                                name=merge_request_name,
+                                id_parent_persistent=tag_definition_destination.id_persistent,
+                                type=tag_definition_destination.type,
+                                time_edit=time_add,
+                                owner=contribution.created_by,
+                            )
+                            tag_definition_origin.save()
+                            break
+                        except TagDefinitionExistsException:
+                            tag_definition_origin = None
+                            merge_request_name = merge_request_base_name + f" {idx}"
+                    if tag_definition_origin is None:
+                        raise TagDefinitionExistsException(
+                            merge_request_name,
+                            id_tag_definition_origin_persistent,
+                            tag_definition_destination.id_parent_persistent,
+                        )
                     column_assignments.append(
                         (column_assignment.index_in_file, tag_definition_origin)
                     )
