@@ -4,7 +4,6 @@ import {
     GridCell,
     GridCellKind,
     GridColumn,
-    GridMouseEventArgs,
     Item,
     Rectangle
 } from '@glideapps/glide-data-grid'
@@ -27,7 +26,8 @@ import {
     TagChangeOwnershipHideAction,
     TagChangeOwnershipShowAction,
     TagDefinitionChangeAction,
-    ToggleEntityModalAction
+    ToggleEntityModalAction,
+    ToggleShowSearchAction
 } from './actions'
 import {
     CurateAction,
@@ -43,8 +43,6 @@ import { UserInfo, UserPermissionGroup } from '../user/state'
 import { LoadingType } from './draw'
 import { useSelector } from 'react-redux'
 import { selectPermissionGroup } from '../user/selectors'
-import { useCallback, useRef, useState } from 'react'
-import { IBounds } from 'react-laag'
 
 const emptyCell = {
     kind: 'text' as GridCellKind,
@@ -171,6 +169,7 @@ export type LocalTableCallbacks = {
     clearEntityChangeErrorCallback: VoidFunction
     showEntityMergingModalCallback: VoidFunction
     hideEntityMergingModalCallback: VoidFunction
+    toggleSearchCallback: (show: boolean) => void
 }
 export type TableDataProps = {
     entities?: Entity[]
@@ -187,6 +186,7 @@ export type TableDataProps = {
     showEntityAddMenu: boolean
     entityAddState: Remote<boolean>
     showEntityMergingModal: boolean
+    showSearch: boolean
 }
 
 export interface ColumnHeaderMenuItem {
@@ -284,29 +284,50 @@ export function useRemoteTableData(
                     return
                 }
                 const [colIdx, rowIdx] = cell
-                dispatch(
-                    new SubmitValuesAsyncAction(
-                        state.columnStates[colIdx].tagDefinition.columnType,
-                        [
-                            state.entities[rowIdx].idPersistent,
-                            state.columnStates[colIdx].tagDefinition.idPersistent,
-                            {
-                                ...state.columnStates[colIdx].cellContents.value[
-                                    rowIdx
-                                ][0],
-                                value: newValue.data?.toString()
-                            }
-                        ]
+                if (colIdx == 0) {
+                    const entity = state.entities[rowIdx]
+                    let newValueData: string | undefined = newValue.data?.toString()
+                    if (newValueData == '') {
+                        newValueData = undefined
+                    }
+                    dispatch(
+                        new EntityChangeOrCreateAction({
+                            disabled: entity.disabled,
+                            idPersistent: entity.idPersistent,
+                            version: entity.version,
+                            displayTxt: newValueData
+                        })
                     )
-                )
+                } else {
+                    dispatch(
+                        new SubmitValuesAsyncAction(
+                            state.columnStates[colIdx].tagDefinition.columnType,
+                            [
+                                state.entities[rowIdx].idPersistent,
+                                state.columnStates[colIdx].tagDefinition.idPersistent,
+                                {
+                                    ...state.columnStates[colIdx].cellContents.value[
+                                        rowIdx
+                                    ][0],
+                                    value: newValue.data?.toString()
+                                }
+                            ]
+                        )
+                    )
+                }
             },
-            addEntityCallback: (displayTxt) =>
+            addEntityCallback: (displayTxtArg) => {
+                let displayTxt: string | undefined = displayTxtArg
+                if (displayTxt == '') {
+                    displayTxt = undefined
+                }
                 dispatch(
                     new EntityChangeOrCreateAction({
                         displayTxt: displayTxt,
                         disabled: false
                     })
                 )
+            }
         },
         {
             cellContentCallback: useCellContentCallback(state),
@@ -374,7 +395,9 @@ export function useRemoteTableData(
             showEntityMergingModalCallback: () =>
                 dispatch(new ToggleEntityModalAction(true)),
             hideEntityMergingModalCallback: () =>
-                dispatch(new ToggleEntityModalAction(false))
+                dispatch(new ToggleEntityModalAction(false)),
+            toggleSearchCallback: (show: boolean) =>
+                dispatch(new ToggleShowSearchAction(show))
         },
         {
             entities: state.entities,
@@ -390,7 +413,8 @@ export function useRemoteTableData(
             tagDefinitionChangeOwnership: state.ownershipChangeTagDefinition,
             showEntityAddMenu: state.showEntityAddDialog,
             entityAddState: state.entityAddState,
-            showEntityMergingModal: state.showEntityMergingModal
+            showEntityMergingModal: state.showEntityMergingModal,
+            showSearch: state.showSearch
         }
     ]
 }

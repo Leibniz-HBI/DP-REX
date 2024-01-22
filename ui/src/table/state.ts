@@ -21,6 +21,7 @@ export class TableState {
     showEntityAddDialog: boolean
     entityAddState: Remote<boolean>
     showEntityMergingModal: boolean
+    showSearch: boolean
 
     constructor({
         columnStates: columnStates = [],
@@ -38,7 +39,8 @@ export class TableState {
         ownershipChangeTagDefinition = undefined,
         showEntityAddDialog = false,
         entityAddState = new Remote(false),
-        showEntityMergingModal = false
+        showEntityMergingModal = false,
+        showSearch = false
     }: {
         columnStates?: ColumnState[]
         columnIndices?: Map<string, number>
@@ -58,6 +60,7 @@ export class TableState {
         showEntityAddDialog?: boolean
         entityAddState?: Remote<boolean>
         showEntityMergingModal?: boolean
+        showSearch?: boolean
     }) {
         this.columnIndices = columnIndices
         this.columnStates = columnStates
@@ -85,6 +88,7 @@ export class TableState {
         this.showEntityAddDialog = showEntityAddDialog
         this.entityAddState = entityAddState
         this.showEntityMergingModal = showEntityMergingModal
+        this.showSearch = showSearch
     }
 
     isLoadingColumn(): boolean {
@@ -224,7 +228,7 @@ export class TableStateCsvIterator implements Iterator<string | undefined> {
 }
 export interface Entity {
     idPersistent: string
-    displayTxt: string
+    displayTxt?: string
     version: number
     disabled: boolean
     displayTxtDetails: string | TagDefinition
@@ -233,13 +237,13 @@ export interface Entity {
 export function newEntity({
     idPersistent,
     displayTxt,
-    displayTxtDetails,
+    displayTxtDetails = 'Display Text',
     version,
     disabled
 }: {
     idPersistent: string
-    displayTxt: string
-    displayTxtDetails: string | TagDefinition
+    displayTxt?: string
+    displayTxtDetails?: string | TagDefinition
     version: number
     disabled: boolean
 }) {
