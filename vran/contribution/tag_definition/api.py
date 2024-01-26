@@ -68,7 +68,9 @@ def get_tag_definitions(request: HttpRequest):
             return 404, ApiError(msg="Contribution candidate does not exist.")
         if candidate.state == ContributionCandidateDb.UPLOADED:
             return 400, ApiError(msg="Column definitions not yet extracted.")
-        tag_definitions_db = TagDefContributionDb.get_by_candidate(candidate)
+        tag_definitions_db = TagDefContributionDb.get_by_candidate_query_set(
+            candidate
+        ).order_by("index_in_file")
         if not tag_definitions_db:
             return 404, ApiError(msg="No tag definitions match the given parameters.")
         return 200, TagDefinitionContributionResponseList(
@@ -127,6 +129,7 @@ def patch_tag_definition(
                 and id_existing_persistent not in allowed_additional_fields
             ):
                 TagDefinition.most_recent_by_id(id_existing_persistent)
+                patch_dict["discard"] = False
             patch_from_dict(candidate_definition, **patch_dict)
             return 200, tag_definitions_contribution_db_to_api(candidate_definition)
         except TagDefinition.DoesNotExist:  # pylint: disable=no-member
