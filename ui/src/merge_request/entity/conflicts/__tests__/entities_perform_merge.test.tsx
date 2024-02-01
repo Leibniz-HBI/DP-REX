@@ -7,18 +7,18 @@ import { configureStore } from '@reduxjs/toolkit'
 import { PropsWithChildren } from 'react'
 import { Provider } from 'react-redux'
 import { UserPermissionGroup } from '../../../../user/state'
-import { ErrorManager, errorSlice } from '../../../../util/error/slice'
+import {
+    NotificationManager,
+    NotificationType,
+    notificationReducer
+} from '../../../../util/notification/slice'
 import {
     EntityMergeRequestConflictsState,
     newEntityMergeRequestConflict
 } from '../state'
 import { entityMergeRequestConflictSlice } from '../slice'
-import {
-    EntityMergeRequestConflictComponent,
-    EntityMergeRequestConflictHeader
-} from '../components'
+import { EntityMergeRequestConflictComponent } from '../components'
 import { EntityMergeRequestStep, newEntityMergeRequest } from '../../state'
-import { assert } from 'console'
 
 jest.mock('react-router-dom', () => {
     const navigateCallbackMock = jest.fn()
@@ -38,7 +38,7 @@ jest.mock('react-router-dom', () => {
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
     preloadedState?: {
-        error: ErrorManager
+        notification: NotificationManager
         entityMergeRequestConflicts: EntityMergeRequestConflictsState
     }
 }
@@ -55,7 +55,7 @@ export function renderWithProviders(
                 reverseOriginDestination: newRemote(undefined),
                 merge: newRemote(undefined)
             },
-            error: { errorList: [], errorMap: {} }
+            notification: { notificationList: [], notificationMap: {} }
         },
         ...renderOptions
     }: ExtendedRenderOptions = {}
@@ -63,7 +63,7 @@ export function renderWithProviders(
     const store = configureStore({
         reducer: {
             entityMergeRequestConflicts: entityMergeRequestConflictSlice.reducer,
-            error: errorSlice.reducer
+            notification: notificationReducer
         },
         middleware: (getDefaultMiddleware) =>
             getDefaultMiddleware({ thunk: { extraArgument: fetchMock } }),
@@ -157,12 +157,14 @@ function addSuccessResponse(fetchMock: jest.Mock) {
         id_persistent: idEntityMr0,
         origin: {
             display_txt: displayTextOrigin0,
+            display_txt_details: 'Display Text',
             id_persistent: idPersistentOrigin0,
             version: versionOrigin0,
             disabled: false
         },
         destination: {
             display_txt: displayTextDestination0,
+            display_txt_details: 'Display Text',
             id_persistent: idPersistentDestination0,
             version: versionDestination0,
             disabled: false
@@ -297,12 +299,14 @@ test('apply conflicts', async () => {
         entityOrigin: {
             idPersistent: idPersistentDestination0,
             displayTxt: displayTextDestination0,
+            displayTxtDetails: 'Display Text',
             version: versionDestination0,
             disabled: false
         },
         entityDestination: {
             idPersistent: idPersistentOrigin0,
             displayTxt: displayTextOrigin0,
+            displayTxtDetails: 'Display Text',
             version: versionOrigin0,
             disabled: false
         },
@@ -319,7 +323,7 @@ test('apply conflicts', async () => {
         fetchMock,
         {
             preloadedState: {
-                error: { errorList: [], errorMap: {} },
+                notification: { notificationList: [], notificationMap: {} },
                 entityMergeRequestConflicts: {
                     conflicts: newRemote(undefined),
                     mergeRequest: newRemote(mergeRequest),
@@ -462,12 +466,14 @@ test('apply conflicts', async () => {
                 idPersistent: idEntityMr0,
                 entityOrigin: {
                     displayTxt: displayTextDestination0,
+                    displayTxtDetails: 'Display Text',
                     idPersistent: idPersistentDestination0,
                     version: versionDestination0,
                     disabled: false
                 },
                 entityDestination: {
                     displayTxt: displayTextOrigin0,
+                    displayTxtDetails: 'Display Text',
                     idPersistent: idPersistentOrigin0,
                     version: versionOrigin0,
                     disabled: false
@@ -485,10 +491,13 @@ test('apply conflicts', async () => {
         merge: newRemote(idEntityMr0)
     }
     await waitFor(() => {
-        expect(store.getState()).toEqual({
-            entityMergeRequestConflicts: expectedConflictState,
-            error: { errorList: [], errorMap: {} }
-        })
+        const state = store.getState()
+        expect(state.entityMergeRequestConflicts).toEqual(expectedConflictState)
+        const notifications = state.notification.notificationList
+        expect(notifications.length).toEqual(1)
+        const notification = notifications[0]
+        expect(notification.type).toEqual(NotificationType.Success)
+        expect(notification.msg).toEqual('Application of resolutions started.')
     })
     expect(fetchMock.mock.calls).toEqual([
         [

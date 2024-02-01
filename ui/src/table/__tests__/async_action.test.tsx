@@ -21,13 +21,27 @@ import {
     EntityChangeOrCreateAction,
     parseEntityObjectFromJson
 } from '../async_actions'
-import { newErrorState } from '../../util/error/slice'
+import { addError, addSuccessVanish } from '../../util/notification/slice'
 import { newEntity } from '../state'
 
 jest.mock('uuid', () => {
     return {
         v4: () => 'id-error-test'
     }
+})
+jest.mock('../../util/notification/slice', () => {
+    const addErrorMock = jest.fn()
+    const vanishingSuccessMock = jest.fn()
+    return {
+        ...jest.requireActual('../../util/notification/slice'),
+        addError: addErrorMock,
+        addSuccessVanish: vanishingSuccessMock
+    }
+})
+
+beforeEach(() => {
+    ;(addError as unknown as jest.Mock).mockReset()
+    ;(addSuccessVanish as unknown as jest.Mock).mockReset()
 })
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,7 +143,8 @@ describe('get table async action', () => {
             ]
         ])
         const dispatch = jest.fn()
-        await new GetTableAsyncAction().run(dispatch)
+        const reduxDispatch = jest.fn()
+        await new GetTableAsyncAction().run(dispatch, reduxDispatch)
         expect(dispatch.mock.calls).toEqual([
             [new SetEntityLoadingAction()],
             [new SetColumnLoadingAction(displayTextTagDef)],
@@ -176,7 +191,8 @@ describe('get table async action', () => {
             ]
         ])
         const dispatch = jest.fn()
-        await new GetTableAsyncAction().run(dispatch)
+        const reduxDispatch = jest.fn()
+        await new GetTableAsyncAction().run(dispatch, reduxDispatch)
         expect(dispatch.mock.calls.length).toBe(4)
         expect(dispatch.mock.calls[0][0]).toEqual(new SetEntityLoadingAction())
         expect(dispatch.mock.calls[1][0]).toEqual(
@@ -198,17 +214,15 @@ describe('get table async action', () => {
             ]
         ])
         const dispatch = jest.fn()
-        await new GetTableAsyncAction().run(dispatch)
+        const reduxDispatch = jest.fn()
+        await new GetTableAsyncAction().run(dispatch, reduxDispatch)
         expect(dispatch.mock.calls).toEqual([
             [new SetEntityLoadingAction()],
             [new SetColumnLoadingAction(displayTextTagDef)],
-            [
-                new SetLoadDataErrorAction(
-                    newErrorState(
-                        'Could not load entities chunk 0. Reason: "test error"'
-                    )
-                )
-            ]
+            [new SetLoadDataErrorAction()]
+        ])
+        expect((addError as unknown as jest.Mock).mock.calls).toEqual([
+            ['Could not load entities chunk 0. Reason: "test error"']
         ])
     })
 
@@ -221,13 +235,17 @@ describe('get table async action', () => {
                 }
             ]
         ])
+        // TODO test correct error dispatch.
         const dispatch = jest.fn()
-        await new GetTableAsyncAction().run(dispatch)
+        const reduxDispatch = jest.fn()
+        await new GetTableAsyncAction().run(dispatch, reduxDispatch)
         expect(dispatch.mock.calls).toEqual([
             [new SetEntityLoadingAction()],
             [new SetColumnLoadingAction(displayTextTagDef)],
-            [new SetLoadDataErrorAction(newErrorState('test error'))]
+            [new SetLoadDataErrorAction()]
         ])
+
+        expect((addError as unknown as jest.Mock).mock.calls).toEqual([['test error']])
     })
 })
 describe('get column async action', () => {
@@ -283,7 +301,8 @@ describe('get column async action', () => {
             ]
         ])
         const dispatch = jest.fn()
-        await new GetColumnAsyncAction(columnDefTest).run(dispatch)
+        const reduxDispatch = jest.fn()
+        await new GetColumnAsyncAction(columnDefTest).run(dispatch, reduxDispatch)
         expect(dispatch.mock.calls.length).toBe(2)
         expect(dispatch.mock.calls[0][0]).toEqual(
             new SetColumnLoadingAction(tagDefTest)
@@ -319,7 +338,8 @@ describe('get column async action', () => {
             ]
         ])
         const dispatch = jest.fn()
-        await new GetColumnAsyncAction(columnDefTest).run(dispatch)
+        const reduxDispatch = jest.fn()
+        await new GetColumnAsyncAction(columnDefTest).run(dispatch, reduxDispatch)
         expect(dispatch.mock.calls.length).toBe(2)
         expect(dispatch.mock.calls[0][0]).toEqual(
             new SetColumnLoadingAction(tagDefTest)
@@ -383,6 +403,7 @@ describe('get column async action', () => {
                 ]
             ])
             const dispatch = jest.fn()
+            const reduxDispatch = jest.fn()
             await new SubmitValuesAsyncAction(TagType.Float, [
                 idEntityTest,
                 idColumnDefTest,
@@ -391,7 +412,7 @@ describe('get column async action', () => {
                     version: versionTestBefore,
                     value: valueTest
                 }
-            ]).run(dispatch)
+            ]).run(dispatch, reduxDispatch)
             expect(dispatch.mock.calls).toEqual([
                 [new SubmitValuesStartAction()],
                 [
@@ -429,6 +450,7 @@ describe('get column async action', () => {
                 ]
             ])
             const dispatch = jest.fn()
+            const reduxDispatch = jest.fn()
             await new SubmitValuesAsyncAction(TagType.Float, [
                 idEntityTest,
                 idColumnDefTest,
@@ -437,7 +459,7 @@ describe('get column async action', () => {
                     version: versionTestBefore,
                     value: valueTest
                 }
-            ]).run(dispatch)
+            ]).run(dispatch, reduxDispatch)
             expect(dispatch.mock.calls).toEqual([
                 [new SubmitValuesStartAction()],
                 [
@@ -453,14 +475,12 @@ describe('get column async action', () => {
                         ]
                     ])
                 ],
+                [new SubmitValuesErrorAction()]
+            ])
+            expect((addError as unknown as jest.Mock).mock.calls).toEqual([
                 [
-                    new SubmitValuesErrorAction(
-                        newErrorState(
-                            'The data you entered changed in the remote location. ' +
-                                'The new values are updated in the table. Please review them.',
-                            'id-error-test'
-                        )
-                    )
+                    'The data you entered changed in the remote location. ' +
+                        'The new values are updated in the table. Please review them.'
                 ]
             ])
         })
@@ -476,6 +496,7 @@ describe('get column async action', () => {
                 ]
             ])
             const dispatch = jest.fn()
+            const reduxDispatch = jest.fn()
             await new SubmitValuesAsyncAction(TagType.Float, [
                 idEntityTest,
                 idColumnDefTest,
@@ -484,13 +505,14 @@ describe('get column async action', () => {
                     version: versionTestBefore,
                     value: valueTest
                 }
-            ]).run(dispatch)
-            expect(dispatch.mock.calls.length).toEqual(2)
-            expect(dispatch.mock.calls[0]).toEqual([new SubmitValuesStartAction()])
-            const call2args = dispatch.mock.calls[1]
-            expect(call2args.length).toEqual(1)
-            expect(call2args[0]).toBeInstanceOf(SubmitValuesErrorAction)
-            expect(call2args[0].error.msg).toEqual('test error')
+            ]).run(dispatch, reduxDispatch)
+            expect(dispatch.mock.calls).toEqual([
+                [new SubmitValuesStartAction()],
+                [new SubmitValuesErrorAction()]
+            ])
+            expect((addError as unknown as jest.Mock).mock.calls).toEqual([
+                ['test error']
+            ])
         })
     })
 
@@ -523,30 +545,27 @@ describe('get column async action', () => {
     })
 })
 describe('change or create entity', () => {
-    test('success new entity', async () => {
-        responseSequence([
-            [
-                200,
-                () => {
-                    return {
-                        persons: [
-                            {
-                                id_persistent: idPersistent0,
-                                display_txt: displayTxt0,
-                                display_txt_details: 'display_txt_detail',
-                                version: version0,
-                                disabled: false
-                            }
-                        ]
-                    }
+    const successResponse = () => {
+        return {
+            persons: [
+                {
+                    id_persistent: idPersistent0,
+                    display_txt: displayTxt0,
+                    display_txt_details: 'display_txt_detail',
+                    version: version0,
+                    disabled: false
                 }
             ]
-        ])
+        }
+    }
+    test('success new entity', async () => {
+        responseSequence([[200, successResponse]])
         const dispatch = jest.fn()
+        const reduxDispatch = jest.fn()
         await new EntityChangeOrCreateAction({
             displayTxt: displayTxt0,
             disabled: false
-        }).run(dispatch)
+        }).run(dispatch, reduxDispatch)
         expect(dispatch.mock.calls).toEqual([
             [new EntityChangeOrCreateStartAction()],
             [
@@ -571,6 +590,55 @@ describe('change or create entity', () => {
                 }
             ]
         ])
+        expect((addSuccessVanish as unknown as jest.Mock).mock.calls).toEqual([
+            ['Entity created.']
+        ])
+        expect(reduxDispatch.mock.calls.length).toEqual(1)
+    })
+    test('success change entity', async () => {
+        responseSequence([[200, successResponse]])
+        const dispatch = jest.fn()
+        const reduxDispatch = jest.fn()
+        await new EntityChangeOrCreateAction({
+            idPersistent: idPersistent0,
+            version: 0,
+            displayTxt: displayTxt0,
+            disabled: false
+        }).run(dispatch, reduxDispatch)
+        expect(dispatch.mock.calls).toEqual([
+            [new EntityChangeOrCreateStartAction()],
+            [
+                new EntityChangeOrCreateSuccessAction(
+                    newEntity({
+                        idPersistent: idPersistent0,
+                        displayTxt: displayTxt0,
+                        displayTxtDetails: 'display_txt_detail',
+                        version: version0,
+                        disabled: false
+                    })
+                )
+            ]
+        ])
+        expect((fetch as jest.Mock).mock.calls).toEqual([
+            [
+                'http://127.0.0.1:8000/vran/api/persons',
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        persons: [
+                            {
+                                display_txt: displayTxt0,
+                                id_persistent: idPersistent0,
+                                version: version0
+                            }
+                        ]
+                    })
+                }
+            ]
+        ])
+        expect((addSuccessVanish as unknown as jest.Mock).mock.calls).toEqual([])
+        expect(reduxDispatch.mock.calls.length).toEqual(0)
     })
     test('error', async () => {
         responseSequence([
@@ -582,14 +650,17 @@ describe('change or create entity', () => {
             ]
         ])
         const dispatch = jest.fn()
+        const reduxDispatch = jest.fn()
         await new EntityChangeOrCreateAction({
             displayTxt: displayTxt0,
             disabled: false
-        }).run(dispatch)
+        }).run(dispatch, reduxDispatch)
         expect(dispatch.mock.calls).toEqual([
             [new EntityChangeOrCreateStartAction()],
-            [new EntityChangeOrCreateErrorAction('error')]
+            [new EntityChangeOrCreateErrorAction()]
         ])
+        expect(reduxDispatch.mock.calls.length).toEqual(1)
+        expect((addError as unknown as jest.Mock).mock.calls).toEqual([['error']])
     })
 })
 

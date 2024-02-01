@@ -1,6 +1,6 @@
 import { useReducer, useCallback, Dispatch, Reducer } from 'react'
-import { LogoutAction } from '../user/actions'
 import { AsyncAction } from './async_action'
+import { AppDispatch } from '../store'
 
 export type ThunkMiddlewareDispatch<U> = <V>(
     action: AsyncAction<U, V> | U
@@ -13,11 +13,11 @@ export type ThunkMiddlewareDispatch<U> = <V>(
  */
 function thunker<U>(
     dispatch: Dispatch<U>,
-    userDispatch?: Dispatch<LogoutAction>
+    reduxDispatch: AppDispatch
 ): ThunkMiddlewareDispatch<U> {
     return function <V>(action: AsyncAction<U, V> | U): Promise<V | undefined> {
         if (action instanceof AsyncAction) {
-            return (action as AsyncAction<U, V>).run(dispatch, userDispatch)
+            return (action as AsyncAction<U, V>).run(dispatch, reduxDispatch)
         } else {
             dispatch(action)
             return Promise.resolve(undefined)
@@ -33,13 +33,17 @@ function thunker<U>(
  */
 export function useThunkReducer<T, U>(
     reducer: Reducer<T, U>,
-    initialState: T
+    initialState: T,
+    reduxDispatch: AppDispatch
 ): [T, ThunkMiddlewareDispatch<U>] {
     const [state, dispatch] = useReducer(reducer, initialState)
     return [
         state,
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        useCallback(thunker<U>(dispatch as Dispatch<U>), [initialState])
+        useCallback(thunker<U>(dispatch as Dispatch<U>, reduxDispatch), [
+            initialState,
+            reduxDispatch
+        ])
     ]
 }
 
@@ -72,7 +76,7 @@ export class Remote<U> implements RemoteInterface<U> {
         return new Remote<U>(this.value, this.isLoading)
     }
 
-    withError(errorMsg: string) {
+    withError(errorMsg?: string) {
         return new Remote<U>(this.value, false, errorMsg)
     }
 

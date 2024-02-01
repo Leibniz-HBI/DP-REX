@@ -2,10 +2,7 @@
  * @jest-environment jsdom
  */
 import { Remote, useThunkReducer } from '../../util/state'
-import {
-    UploadContributionClearErrorAction,
-    ToggleShowAddContributionAction
-} from '../actions'
+import { ToggleShowAddContributionAction } from '../actions'
 import { LoadContributionsAction, UploadContributionAction } from '../async_actions'
 import { useContribution } from '../hooks'
 import { newContributionState } from '../state'
@@ -17,6 +14,14 @@ jest.mock('../../util/state', () => {
         useThunkReducer: jest.fn()
     }
 })
+jest.mock('react-redux', () => {
+    const mockDispatch = jest.fn()
+    return {
+        ...jest.requireActual('react-redux'),
+        useDispatch: jest.fn().mockReturnValue(mockDispatch)
+    }
+})
+
 describe('loading callback', () => {
     test('starts', () => {
         const dispatch = jest.fn()
@@ -70,18 +75,6 @@ describe('upload contribution', () => {
         submitUploadCallback(uploadPropsTest)
         expect(dispatch.mock.calls).toEqual([
             [new UploadContributionAction({ ...uploadPropsTest })]
-        ])
-    })
-    test('clear error callback', () => {
-        const dispatch = jest.fn()
-        ;(useThunkReducer as jest.Mock).mockReturnValue([
-            newContributionState({}),
-            dispatch
-        ])
-        const { clearUploadErrorCallback } = useContribution()
-        clearUploadErrorCallback()
-        expect(dispatch.mock.calls).toEqual([
-            [new UploadContributionClearErrorAction()]
         ])
     })
 })

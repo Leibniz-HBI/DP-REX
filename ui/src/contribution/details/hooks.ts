@@ -6,7 +6,7 @@ import {
     PatchContributionAction
 } from './async_action'
 import { Contribution } from '../state'
-import { PatchContributionDetailsClearErrorAction } from './action'
+import { useAppDispatch } from '../../hooks'
 
 export type PatchContributionCallback = ({
     name,
@@ -23,13 +23,14 @@ export type ContributionDetailProps = {
     patchContribution: Remote<undefined>
     loadContributionDetailsCallback: VoidFunction
     patchContributionDetailsCallback: PatchContributionCallback
-    clearPatchContributionErrorCallback: VoidFunction
 }
 
 export function useContributionDetails(idPersistent: string): ContributionDetailProps {
+    const reduxDispatch = useAppDispatch()
     const [state, dispatch] = useThunkReducer(
         contributionDetailsReducer,
-        new ContributionDetailState({})
+        new ContributionDetailState({}),
+        reduxDispatch
     )
     return {
         remoteContribution: state.contribution,
@@ -49,9 +50,6 @@ export function useContributionDetails(idPersistent: string): ContributionDetail
                     hasHeader: hasHeader
                 })
             )
-        },
-        clearPatchContributionErrorCallback: () => {
-            dispatch(new PatchContributionDetailsClearErrorAction())
         }
     }
 }
