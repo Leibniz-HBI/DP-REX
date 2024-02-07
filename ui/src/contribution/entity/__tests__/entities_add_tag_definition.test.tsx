@@ -12,16 +12,16 @@ import {
     newContributionEntityState,
     newScoredEntity
 } from '../state'
-import { RemoteInterface, newRemote } from '../../../util/state'
-import { Contribution } from '../../state'
+import { newRemote } from '../../../util/state'
 import { configureStore } from '@reduxjs/toolkit'
 import { contributionEntitySlice } from '../slice'
-import { contributionSlice } from '../../slice'
+import { ContributionState, contributionSlice, newContributionState } from '../../slice'
 import { PropsWithChildren } from 'react'
 import { Provider } from 'react-redux'
 import { EntitiesStep } from '../components'
 import { TagSelectionState, newTagSelectionState } from '../../../column_menu/state'
 import { tagSelectionSlice } from '../../../column_menu/slice'
+import { ContributionStep, newContribution } from '../../state'
 
 jest.mock('react-router-dom', () => {
     const loaderMock = jest.fn()
@@ -36,9 +36,7 @@ function MockTable(props: any) {
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
     preloadedState?: {
         contributionEntity: ContributionEntityState
-        contribution: {
-            selectedContribution: RemoteInterface<Contribution | undefined>
-        }
+        contribution: ContributionState
         tagSelection: TagSelectionState
     }
 }
@@ -49,7 +47,18 @@ export function renderWithProviders(
     {
         preloadedState = {
             contributionEntity: newContributionEntityState({}),
-            contribution: { selectedContribution: newRemote(undefined) },
+            contribution: newContributionState({
+                selectedContribution: newRemote(
+                    newContribution({
+                        idPersistent: idContribution,
+                        name: 'contribution test',
+                        description: 'A contribution used in tests',
+                        hasHeader: true,
+                        step: ContributionStep.ValuesExtracted,
+                        author: 'author-test'
+                    })
+                )
+            }),
             tagSelection: newTagSelectionState({})
         },
         ...renderOptions
@@ -86,14 +95,6 @@ function addResponseSequence(mock: jest.Mock, responses: [number, unknown][]) {
     }
 }
 const idContribution = 'id-contribution-test'
-const contributionTest = {
-    id_persistent: idContribution,
-    name: 'contribution test',
-    description: 'A contribution used in tests',
-    has_header: true,
-    state: 'VALUES_EXTRACTED',
-    author: 'author-test'
-}
 const personList = Array.from({ length: 60 }, (_val, idx) => {
     return {
         display_txt: `entity-${idx}`,
@@ -151,12 +152,10 @@ function mkMatches(
 const idTagDef0 = 'id-tag-test-0'
 const nameTagDef0 = 'tag def 0'
 const idTagDefContribution0 = 'id-tag-def-contribution-0'
-const idTagDefContribution1 = 'id-tag-def-contribution-1'
 const idTagDef1 = 'id-tag-test-1'
 const nameTagDef1 = 'tag def 1'
 function initialResponses(fetchMock: jest.Mock) {
     addResponseSequence(fetchMock, [
-        [200, { contributionTest }],
         [200, { persons: personList }],
         [200, { persons: [] }],
         [
@@ -195,18 +194,18 @@ test('add tag values.', async () => {
     addValueResponses(fetchMock, idTagDef0, '1')
     const { store } = renderWithProviders(<EntitiesStep />, fetchMock)
     await waitFor(() => {
-        expect(fetchMock.mock.calls.length).toEqual(8)
+        expect(fetchMock.mock.calls.length).toEqual(7)
     })
     await addTagDefinitionByName(nameTagDef0)
     checkTagValueCalls(fetchMock, idTagDef0)
     await waitFor(() => {
-        expect(fetchMock.mock.calls.length).toEqual(10)
+        expect(fetchMock.mock.calls.length).toEqual(9)
     })
     addValueResponses(fetchMock, idTagDef1, '2')
     await addTagDefinitionByName(nameTagDef1)
     // check calls for additional values
     await waitFor(() => {
-        expect(fetchMock.mock.calls.length).toEqual(12)
+        expect(fetchMock.mock.calls.length).toEqual(11)
     })
     checkTagValueCalls(fetchMock, idTagDef1)
     // check final values!

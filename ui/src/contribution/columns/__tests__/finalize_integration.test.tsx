@@ -13,21 +13,29 @@ import { contributionColumnDefinitionSlice } from '../slice'
 import { PropsWithChildren } from 'react'
 import { Provider } from 'react-redux'
 import { ColumnDefinitionStep } from '../components'
-import { ContributionStep } from '../../state'
+import { ContributionStep, newContribution } from '../../state'
 import { TagSelectionState, newTagSelectionState } from '../../../column_menu/state'
 import { tagSelectionSlice } from '../../../column_menu/slice'
-import { ContributionState, contributionSlice } from '../../slice'
+import { ContributionState, contributionSlice, newContributionState } from '../../slice'
 import {
     NotificationManager,
     NotificationType,
     notificationReducer
 } from '../../../util/notification/slice'
-import { NotificationToastList } from '../../../util/notification/components'
+import { useNavigate } from 'react-router-dom'
 
 jest.mock('react-router-dom', () => {
     const loaderMock = jest.fn()
     loaderMock.mockReturnValue('id-contribution-test')
-    return { useLoaderData: loaderMock, useNavigate: jest.fn() }
+    const navigateMock = jest.fn()
+    return {
+        useLoaderData: loaderMock,
+        useNavigate: jest.fn().mockReturnValue(navigateMock)
+    }
+})
+
+beforeEach(() => {
+    ;(useNavigate() as jest.Mock).mockClear()
 })
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
@@ -47,7 +55,18 @@ export function renderWithProviders(
             contributionColumnDefinition: newColumnDefinitionsContributionState({
                 columns: newRemote(undefined)
             }),
-            contribution: { selectedContribution: newRemote(undefined) },
+            contribution: newContributionState({
+                selectedContribution: newRemote(
+                    newContribution({
+                        name: 'contribution test',
+                        idPersistent: idContribution,
+                        description: 'a contribution for tests',
+                        step: ContributionStep.ColumnsExtracted,
+                        hasHeader: true,
+                        author: authorTest
+                    })
+                )
+            }),
             tagSelection: newTagSelectionState({}),
             notification: { notificationList: [], notificationMap: {} }
         },
@@ -99,20 +118,11 @@ export const contributionColumnActiveRsp1 = {
     index_in_file: 2,
     discard: false
 }
-export const contributionCandidateRsp = {
-    name: 'contribution test',
-    id_persistent: idContribution,
-    description: 'a contribution for tests',
-    step: ContributionStep.ColumnsExtracted,
-    has_header: true,
-    author: authorTest
-}
 const idTagDef0 = 'id-tag-test-0'
 const nameTagDef0 = 'tag def 0'
 
 function initialResponseSequence(fetchMock: jest.Mock) {
     addResponseSequence(fetchMock, [
-        [200, contributionCandidateRsp],
         [
             200,
             {
@@ -146,12 +156,22 @@ test('finish success', async () => {
     initialResponseSequence(fetchMock)
     addResponseSequence(fetchMock, [
         [200, {}],
-        [200, { tag_definitions: [] }]
+        [
+            200,
+            {
+                name: 'contribution test',
+                id_persistent: idContribution,
+                description: 'a contribution for tests',
+                has_header: true,
+                author: authorTest,
+                state: 'COLUMNS_ASSIGNED'
+            }
+        ]
     ])
     const { store } = renderWithProviders(<ColumnDefinitionStep />, fetchMock)
     let button: HTMLElement | undefined
     await waitFor(() => {
-        expect(fetchMock.mock.calls.length).toEqual(3)
+        expect(fetchMock.mock.calls.length).toEqual(2)
         button = screen.getByRole('button', { name: /finalize column assignment/i })
     })
     button?.click()
@@ -162,9 +182,21 @@ test('finish success', async () => {
         expect(notification.type).toEqual(NotificationType.Success)
         expect(notification.msg).toEqual('Columns successfully assigned.')
     })
-    expect(fetchMock.mock.calls[fetchMock.mock.calls.length - 1]).toEqual([
+    await waitFor(() => {
+        expect(store.getState().contribution.selectedContribution.value?.step).toEqual(
+            ContributionStep.ColumnsAssigned
+        )
+    })
+    expect(fetchMock).toHaveBeenCalledWith(
         `http://127.0.0.1:8000/vran/api/contributions/${idContribution}/column_assignment_complete`,
         { method: 'POST', credentials: 'include' }
+    )
+    expect(fetchMock).toHaveBeenCalledWith(
+        `http://127.0.0.1:8000/vran/api/contributions/${idContribution}`,
+        { credentials: 'include' }
+    )
+    expect((useNavigate() as jest.Mock).mock.calls).toEqual([
+        ['/contribute/id-contribution-test/entities']
     ])
 })
 test('finish error', async () => {
@@ -194,8 +226,9 @@ test('finish error', async () => {
         expect(notification.type).toEqual(NotificationType.Error)
         expect(notification.msg).toEqual(errorMsg)
     })
-    expect(fetchMock.mock.calls[fetchMock.mock.calls.length - 1]).toEqual([
+    expect(fetchMock).toHaveBeenCalledWith(
         `http://127.0.0.1:8000/vran/api/contributions/${idContribution}/column_assignment_complete`,
         { method: 'POST', credentials: 'include' }
-    ])
+    )
+    expect((useNavigate() as jest.Mock).mock.calls).toEqual([])
 })

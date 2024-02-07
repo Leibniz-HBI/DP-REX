@@ -1,6 +1,4 @@
-import { useLoaderData } from 'react-router-dom'
 import { constructColumnTitle, mkCellContentCallback } from './hooks'
-import { ContributionStepper } from '../components'
 import { RemoteTriggerButton, VrAnLoading } from '../../util/components/misc'
 import { Button, Col, ListGroup, Modal, Row } from 'react-bootstrap'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -39,37 +37,22 @@ import {
     setSelectedEntityIdx,
     toggleTagDefinitionMenu
 } from './slice'
-import { loadContributionDetails } from '../thunks'
 import { selectContribution } from '../selectors'
-import { clearSelectedContribution } from '../slice'
 import { loadTagDefinitionHierarchy } from '../../column_menu/thunks'
-import { ContributionStep } from '../state'
 import { IBounds, useLayer } from 'react-laag'
 import { TagDefinition } from '../../column_menu/state'
+import { useNavigate } from 'react-router-dom'
+import { loadContributionDetails } from '../thunks'
 
 export function EntitiesStep() {
-    const idContributionPersistent = useLoaderData() as string
-    const dispatch: AppDispatch = useDispatch()
     const contributionCandidate = useSelector(selectContribution)
-    useEffect(() => {
-        dispatch(loadContributionDetails(idContributionPersistent))
-        return function cleanup() {
-            dispatch(clearSelectedContribution())
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [idContributionPersistent])
-    let body = <EntitiesStepBody idContributionPersistent={idContributionPersistent} />
     if (contributionCandidate.value === undefined) {
-        body = <VrAnLoading />
+        return <VrAnLoading />
     }
     return (
-        <ContributionStepper
-            selectedIdx={2}
-            id_persistent={idContributionPersistent}
-            step={contributionCandidate.value?.step ?? ContributionStep.ValuesExtracted}
-        >
-            {body}
-        </ContributionStepper>
+        <EntitiesStepBody
+            idContributionPersistent={contributionCandidate.value.idPersistent}
+        />
     )
 }
 
@@ -460,17 +443,28 @@ export function CompleteAssignmentButton({
 }: {
     idContributionPersistent: string
 }) {
-    const buttonRef = useRef(null)
     const completeEntityAssignmentState = useSelector(selectCompleteEntityAssignment)
     const dispatch: AppDispatch = useDispatch()
+    const navigate = useNavigate()
     return (
         <>
-            <Col sm="auto" ref={buttonRef} key="entities-step-complete-button">
+            <Col sm="auto" key="entities-step-complete-button">
                 <RemoteTriggerButton
                     label="Confirm Assigned Duplicates"
                     isLoading={completeEntityAssignmentState.isLoading}
                     onClick={() =>
-                        dispatch(completeEntityAssignment(idContributionPersistent))
+                        dispatch(
+                            completeEntityAssignment(idContributionPersistent)
+                        ).then((success) => {
+                            if (success) {
+                                dispatch(
+                                    loadContributionDetails(idContributionPersistent)
+                                )
+                                navigate(
+                                    `/contribute/${idContributionPersistent}/complete`
+                                )
+                            }
+                        })
                     }
                 />
             </Col>

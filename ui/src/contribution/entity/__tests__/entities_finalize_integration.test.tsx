@@ -8,11 +8,9 @@ jest.mock('@glideapps/glide-data-grid', () => ({
 }))
 import { RenderOptions, render, waitFor, screen } from '@testing-library/react'
 import { ContributionEntityState, newContributionEntityState } from '../state'
-import { RemoteInterface, newRemote } from '../../../util/state'
-import { Contribution } from '../../state'
 import { configureStore } from '@reduxjs/toolkit'
 import { contributionEntitySlice } from '../slice'
-import { contributionSlice } from '../../slice'
+import { ContributionState, contributionSlice, newContributionState } from '../../slice'
 import { PropsWithChildren } from 'react'
 import { Provider } from 'react-redux'
 import { EntitiesStep } from '../components'
@@ -23,23 +21,32 @@ import {
     NotificationType,
     notificationReducer
 } from '../../../util/notification/slice'
+import { useNavigate } from 'react-router-dom'
+import { ContributionStep, newContribution } from '../../state'
+import { newRemote } from '../../../util/state'
 
 jest.mock('react-router-dom', () => {
     const loaderMock = jest.fn()
     loaderMock.mockReturnValue('id-contribution-test')
-    return { useLoaderData: loaderMock, useNavigate: jest.fn() }
+    const navigateMock = jest.fn()
+    return {
+        useLoaderData: loaderMock,
+        useNavigate: jest.fn().mockReturnValue(navigateMock)
+    }
 })
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
 function MockTable(props: any) {
     return <div className="mock"></div>
 }
 
+beforeEach(() => {
+    ;(useNavigate() as jest.Mock).mockClear()
+})
+
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
     preloadedState?: {
         contributionEntity: ContributionEntityState
-        contribution: {
-            selectedContribution: RemoteInterface<Contribution | undefined>
-        }
+        contribution: ContributionState
         tagSelection: TagSelectionState
         notification: NotificationManager
     }
@@ -51,7 +58,18 @@ export function renderWithProviders(
     {
         preloadedState = {
             contributionEntity: newContributionEntityState({}),
-            contribution: { selectedContribution: newRemote(undefined) },
+            contribution: newContributionState({
+                selectedContribution: newRemote(
+                    newContribution({
+                        idPersistent: idContribution,
+                        name: 'contribution test',
+                        description: 'A contribution used in tests',
+                        hasHeader: true,
+                        step: ContributionStep.ValuesExtracted,
+                        author: 'author-test'
+                    })
+                )
+            }),
             tagSelection: newTagSelectionState({}),
             notification: { notificationList: [], notificationMap: {} }
         },
@@ -135,14 +153,6 @@ function mkMatches(
 }
 
 const idContribution = 'id-contribution-test'
-const contributionTest = {
-    id_persistent: idContribution,
-    name: 'contribution test',
-    description: 'A contribution used in tests',
-    has_header: true,
-    state: 'VALUES_EXTRACTED',
-    author: 'author-test'
-}
 const personList = Array.from({ length: 60 }, (_val, idx) => {
     return {
         display_txt: `entity-${idx}`,
@@ -155,7 +165,6 @@ const idTagDef0 = 'id-tag-test-0'
 const nameTagDef0 = 'tag def 0'
 function initialResponses(fetchMock: jest.Mock) {
     addResponseSequence(fetchMock, [
-        [200, { contributionTest }],
         [200, { persons: personList }],
         [200, { persons: [] }],
         [
@@ -183,9 +192,22 @@ test('success', async () => {
     const fetchMock = jest.fn()
     initialResponses(fetchMock)
     addResponseSequence(fetchMock, [[200, {}]])
+    addResponseSequence(fetchMock, [
+        [
+            200,
+            {
+                id_persistent: idContribution,
+                name: 'contribution test',
+                description: 'A contribution used in tests',
+                has_header: true,
+                author: 'author-test',
+                state: 'ENTITIES_ASSIGNED'
+            }
+        ]
+    ])
     const { store } = renderWithProviders(<EntitiesStep />, fetchMock)
     await waitFor(() => {
-        expect(fetchMock.mock.calls.length).toEqual(7)
+        expect(fetchMock.mock.calls.length).toEqual(6)
     })
     const button = screen.getByRole('button', { name: /Confirm Assigned Duplicates/i })
     button.click()
@@ -196,9 +218,21 @@ test('success', async () => {
         expect(notification.type).toEqual(NotificationType.Success)
         expect(notification.msg).toEqual('Duplicates successfully assigned.')
     })
-    expect(fetchMock.mock.calls.at(-1)).toEqual([
+    await waitFor(() => {
+        expect(store.getState().contribution.selectedContribution.value?.step).toEqual(
+            ContributionStep.EntitiesAssigned
+        )
+    })
+    expect(fetchMock.mock.calls.at(-2)).toEqual([
         `http://127.0.0.1:8000/vran/api/contributions/${idContribution}/entity_assignment_complete`,
         { method: 'POST', credentials: 'include' }
+    ])
+    expect(fetchMock.mock.calls.at(-1)).toEqual([
+        `http://127.0.0.1:8000/vran/api/contributions/${idContribution}`,
+        { credentials: 'include' }
+    ])
+    expect((useNavigate() as jest.Mock).mock.calls).toEqual([
+        [`/contribute/${idContribution}/complete`]
     ])
 })
 
@@ -209,7 +243,7 @@ test('error', async () => {
     addResponseSequence(fetchMock, [[500, { msg: errorMsg }]])
     const { store } = renderWithProviders(<EntitiesStep />, fetchMock)
     await waitFor(() => {
-        expect(fetchMock.mock.calls.length).toEqual(7)
+        expect(fetchMock.mock.calls.length).toEqual(6)
     })
     const completeButton = screen.getByRole('button', {
         name: /Confirm Assigned Duplicates/i
@@ -226,4 +260,5 @@ test('error', async () => {
         `http://127.0.0.1:8000/vran/api/contributions/${idContribution}/entity_assignment_complete`,
         { method: 'POST', credentials: 'include' }
     ])
+    expect((useNavigate() as jest.Mock).mock.calls).toEqual([])
 })

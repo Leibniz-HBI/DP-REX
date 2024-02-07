@@ -13,16 +13,11 @@ import {
     createBrowserRouter,
     redirect
 } from 'react-router-dom'
-import { ContributionList } from './contribution/components'
-import { ContributionDetailsStep } from './contribution/details/components'
-import { ColumnDefinitionStep } from './contribution/columns/components'
+import { ContributionList, ContributionStepper } from './contribution/components'
 import { config } from './config'
-import { contributionStepApiToUiMap } from './contribution/async_actions'
 import { ContributionStep } from './contribution/state'
 import { exceptionMessage } from './util/exception'
-import { EntitiesStep } from './contribution/entity/components'
 import { ReviewList } from './merge_request/components'
-import { CompleteStep } from './contribution/complete/components'
 import { MergeRequestConflictResolutionView } from './merge_request/conflicts/components'
 import { UserPermissionGroup } from './user/state'
 import { NotificationToastList } from './util/notification/components'
@@ -33,6 +28,7 @@ import { logoutThunk, refresh } from './user/thunks'
 import { TagManagementPage } from './tag_management/components'
 import { EntityMergeRequestConflictView } from './merge_request/entity/conflicts/components'
 import { ManagementPage } from './management/components'
+import { contributionStepApiToUiMap } from './contribution/thunks'
 
 export function VranRoot() {
     const userInfo = useSelector(selectUserInfo)
@@ -109,22 +105,22 @@ const router = createBrowserRouter([
             },
             {
                 path: 'contribute/:idPersistent/metadata',
-                element: <ContributionDetailsStep />,
+                element: <ContributionStepper selectedIdx={0} />,
                 loader: ({ params }) => params.idPersistent ?? ''
             },
             {
                 path: 'contribute/:idPersistent/columns',
-                element: <ColumnDefinitionStep />,
+                element: <ContributionStepper selectedIdx={1} />,
                 loader: ({ params }) => params.idPersistent ?? ''
             },
             {
                 path: 'contribute/:idPersistent/entities',
-                element: <EntitiesStep />,
+                element: <ContributionStepper selectedIdx={2} />,
                 loader: ({ params }) => params.idPersistent ?? ''
             },
             {
                 path: 'contribute/:idPersistent/complete',
-                element: <CompleteStep />,
+                element: <ContributionStepper selectedIdx={3} />,
                 loader: ({ params }) => params.idPersistent ?? ''
             },
             {

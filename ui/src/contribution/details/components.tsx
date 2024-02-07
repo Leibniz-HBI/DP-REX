@@ -1,26 +1,30 @@
 import * as yup from 'yup'
-import { FormEvent, useLayoutEffect, useRef } from 'react'
-import { PatchContributionCallback, useContributionDetails } from './hooks'
+import { FormEvent } from 'react'
 import { Formik, FormikErrors, FormikTouched } from 'formik'
 import { HandleChange } from '../../util/type'
 import { Button, Col, Form, Row } from 'react-bootstrap'
 import { FormField } from '../../util/form'
-import { ContributionStepper } from '../components'
 import { useLoaderData } from 'react-router-dom'
 import { Contribution } from '../state'
+import { useAppDispatch, useAppSelector } from '../../hooks'
+import { selectContribution } from '../selectors'
+import { patchContributionDetails } from '../thunks'
+
+export type PatchContributionCallback = ({
+    name,
+    description,
+    hasHeader
+}: {
+    name?: string
+    description?: string
+    hasHeader?: boolean
+}) => void
 
 export function ContributionDetailsStep() {
     const idPersistent = useLoaderData() as string
-    const {
-        remoteContribution,
-        loadContributionDetailsCallback,
-        patchContributionDetailsCallback
-    } = useContributionDetails(idPersistent)
-    useLayoutEffect(() => {
-        loadContributionDetailsCallback()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [idPersistent])
-    if (remoteContribution.isLoading || remoteContribution.value == undefined) {
+    const dispatch = useAppDispatch()
+    const contribution = useAppSelector(selectContribution)
+    if (contribution.isLoading || contribution.value == undefined) {
         return (
             <div className="vran-table-container-outer">
                 <div className="vran-table-container-inner">
@@ -30,16 +34,19 @@ export function ContributionDetailsStep() {
         )
     }
     return (
-        <ContributionStepper
-            selectedIdx={0}
-            id_persistent={idPersistent}
-            step={remoteContribution.value.step}
-        >
-            <EditForm
-                contribution={remoteContribution.value}
-                onSubmit={patchContributionDetailsCallback}
-            />
-        </ContributionStepper>
+        <EditForm
+            contribution={contribution.value}
+            onSubmit={({ name, description, hasHeader }) => {
+                dispatch(
+                    patchContributionDetails({
+                        idPersistent,
+                        name,
+                        description,
+                        hasHeader
+                    })
+                )
+            }}
+        />
     )
 }
 
@@ -50,7 +57,7 @@ export type EditFormArgs = {
 }
 const editSchema = yup.object({
     name: yup.string().defined().min(8),
-    description: yup.string().defined().min(50),
+    description: yup.string(),
     hasHeader: yup.boolean()
 })
 
@@ -103,11 +110,8 @@ export function EditFormBody({
     touched: FormikTouched<EditFormArgs>
     formErrors: FormikErrors<EditFormArgs>
 }) {
-    const containerRef = useRef(null)
-    const buttonRef = useRef(null)
-
     return (
-        <Form noValidate onSubmit={handleSubmit} ref={containerRef}>
+        <Form noValidate onSubmit={handleSubmit}>
             <Row>
                 <Col>
                     <FormField
@@ -118,6 +122,7 @@ export function EditFormBody({
                         label="name"
                         error={formErrors.name}
                         isTouched={touched.name}
+                        role="textbox"
                     />
                     <Form.Check
                         className="mb-4"
@@ -138,14 +143,13 @@ export function EditFormBody({
                         error={formErrors.description}
                         isTouched={touched.description}
                         as="textarea"
+                        role="textbox"
                     />
                 </Col>
             </Row>
             <Row className="justify-content-end">
                 <Col sm="auto">
-                    <Button type="submit" ref={buttonRef}>
-                        Edit
-                    </Button>
+                    <Button type="submit">Edit</Button>
                 </Col>
             </Row>
         </Form>

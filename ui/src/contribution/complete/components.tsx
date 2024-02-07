@@ -1,28 +1,26 @@
-import { useLoaderData, useNavigate } from 'react-router-dom'
-import { ContributionStepper } from '../components'
-import { ContributionStep } from '../state'
+import { useNavigate } from 'react-router-dom'
 import { Button, Row } from 'react-bootstrap'
+import { useAppSelector } from '../../hooks'
+import { selectContribution } from '../selectors'
+import { VrAnLoading } from '../../util/components/misc'
 
 export function CompleteStep() {
-    const idContributionPersistent = useLoaderData() as string
+    const contribution = useAppSelector(selectContribution)
     const navigate = useNavigate()
+    if (contribution.value === undefined || contribution.isLoading) {
+        return <VrAnLoading />
+    }
     return (
-        <ContributionStepper
-            selectedIdx={3}
-            id_persistent={idContributionPersistent}
-            step={ContributionStep.EntitiesAssigned}
-        >
-            <>
-                <Row>
-                    All entities were assigned. Please review the merge requests created
-                    for this contribution
-                </Row>
-                <Row>
-                    <Button onClick={() => navigate('/review')}>
-                        Review Merge Requests
-                    </Button>
-                </Row>
-            </>
-        </ContributionStepper>
+        <>
+            <Row className="justify-content-center">
+                All entities were assigned. Please review the merge requests created for
+                this contribution
+            </Row>
+            <Row className="justify-content-center">
+                <Button onClick={() => navigate('/review')}>
+                    Review Merge Requests
+                </Button>
+            </Row>
+        </>
     )
 }

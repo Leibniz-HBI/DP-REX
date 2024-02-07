@@ -9,36 +9,53 @@ import {
     ModalBody,
     Row
 } from 'react-bootstrap'
-import { useContribution, SubmitUploadCallback } from './hooks'
 import { Contribution, ContributionStep, contributionIsReady } from './state'
 import { Formik, FormikErrors, FormikTouched } from 'formik'
 import { HandleChange, SetFieldValue } from '../util/type'
-import { ChangeEvent, FormEvent, ReactElement, useEffect, useRef } from 'react'
+import { ChangeEvent, FormEvent, useEffect, useRef } from 'react'
 import { FormField } from '../util/form'
-import { useNavigate } from 'react-router-dom'
+import { useLoaderData, useNavigate } from 'react-router-dom'
 import { StepHeader } from '../util/components/stepper'
+import { useAppDispatch, useAppSelector } from '../hooks'
+import {
+    getContributionList,
+    loadContributionDetails,
+    uploadContribution
+} from './thunks'
+import {
+    selectContribution,
+    selectContributionList,
+    selectReloadDelay,
+    selectShowAddContribution
+} from './selectors'
+import { VrAnLoading } from '../util/components/misc'
+import {
+    decrementDelay,
+    resetDelay,
+    resetSelectedContribution,
+    toggleShowAddContribution
+} from './slice'
+import { secondDelay } from '../config'
+import { ContributionDetailsStep } from './details/components'
+import { ColumnDefinitionStep } from './columns/components'
+import { EntitiesStep } from './entity/components'
+import { CompleteStep } from './complete/components'
 
 export function ContributionList() {
-    const {
-        contributions,
-        showAddContribution,
-        loadContributionsCallback,
-        toggleShowAddContributionCallback,
-        submitUploadCallback
-    } = useContribution()
+    const dispatch = useAppDispatch()
+    const contributions = useAppSelector(selectContributionList)
+    const showAddContribution = useAppSelector(selectShowAddContribution)
     useEffect(() => {
-        loadContributionsCallback()
+        if (!contributions.isLoading) {
+            dispatch(getContributionList())
+        }
         //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showAddContribution])
     if (contributions.isLoading) {
-        return (
-            <div className="vran-table-container-outer">
-                <div className="vran-table-container-inner">
-                    <div className="shimmer"></div>
-                </div>
-            </div>
-        )
+        return <VrAnLoading />
     }
+    const toggleShowAddContributionCallback = () =>
+        dispatch(toggleShowAddContribution())
     return (
         <Col className="d-flex flex-column h-100 ps-1 pe-1">
             <Row className="justify-content-end ps-2 pe-4 mb-2">
@@ -58,7 +75,7 @@ export function ContributionList() {
                         />
                     ))}
                 </ListGroup>
-                <Modal show={showAddContribution.value}>
+                <Modal show={showAddContribution}>
                     <Modal.Header
                         className="bg-primary"
                         closeButton
@@ -66,7 +83,7 @@ export function ContributionList() {
                         onHide={toggleShowAddContributionCallback}
                     ></Modal.Header>
                     <ModalBody>
-                        <UploadForm onSubmit={submitUploadCallback} />
+                        <UploadForm />
                     </ModalBody>
                 </Modal>
             </Row>
@@ -74,27 +91,106 @@ export function ContributionList() {
     )
 }
 
-export function ContributionStepper({
-    selectedIdx,
-    id_persistent,
-    children,
-    step = ContributionStep.Uploaded
-}: {
-    selectedIdx?: number
-    id_persistent: string
-    children: ReactElement
-    step?: ContributionStep
-}) {
+export function ContributionStepper({ selectedIdx }: { selectedIdx: number }) {
     const navigate = useNavigate()
+    const idContributionPersistent = useLoaderData() as string
+    const contribution = useAppSelector(selectContribution)
+    const reloadDelay = useAppSelector(selectReloadDelay)
+    const dispatch = useAppDispatch()
     let maxIdx = 1
-    if (
-        step === ContributionStep.ColumnsAssigned ||
-        step === ContributionStep.ValuesExtracted
-    ) {
-        maxIdx = 2
+    let processingMessage: string | undefined = undefined
+    switch (contribution.value?.step) {
+        case ContributionStep.Uploaded:
+            processingMessage = 'Columns not yet extracted'
+            break
+        case ContributionStep.ColumnsAssigned:
+            processingMessage = 'Values not yet extracted'
+            maxIdx = 2
+            break
+        case ContributionStep.ValuesExtracted:
+            maxIdx = 2
+            break
+        case ContributionStep.EntitiesAssigned:
+            processingMessage = 'Entities not yet merged.'
+            maxIdx = 3
+            break
+        case ContributionStep.Merged:
+            maxIdx = 3
+            break
     }
-    if (step === ContributionStep.EntitiesAssigned) {
-        maxIdx = 3
+    useEffect(() => {
+        if (contribution?.isLoading) {
+            return
+        }
+        if (
+            contribution.value?.idPersistent !== undefined &&
+            idContributionPersistent != contribution.value?.idPersistent
+        ) {
+            dispatch(resetSelectedContribution())
+            return
+        }
+        if (contribution.value === undefined) {
+            dispatch(loadContributionDetails(idContributionPersistent))
+        } else if (selectedIdx == maxIdx && processingMessage !== undefined) {
+            if (reloadDelay == 0) {
+                dispatch(loadContributionDetails(idContributionPersistent)).then(() =>
+                    dispatch(resetDelay())
+                )
+            } else {
+                setTimeout(() => dispatch(decrementDelay()), secondDelay)
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        contribution.value?.idPersistent,
+        reloadDelay,
+        selectedIdx,
+        maxIdx,
+        processingMessage
+    ])
+    let body
+    if (selectedIdx > maxIdx) {
+        body = (
+            <Row className="justify-content-center">
+                This step is not yet available for this contribution. Please select an
+                available step.
+            </Row>
+        )
+    } else if (selectedIdx == maxIdx && processingMessage !== undefined) {
+        if (
+            contribution.isLoading ||
+            contribution.value?.idPersistent != idContributionPersistent
+        ) {
+            body = <VrAnLoading />
+        } else {
+            body = (
+                <Row>
+                    <Col>
+                        <Row className="justify-content-center">{`Data not yet available: "${processingMessage}".`}</Row>
+                        <Row className="justify-content-center">{`Reloading in ${reloadDelay} seconds.`}</Row>
+                    </Col>
+                </Row>
+            )
+        }
+    } else {
+        switch (selectedIdx) {
+            case 0:
+                body = <ContributionDetailsStep />
+                break
+            case 1:
+                body = <ColumnDefinitionStep />
+                break
+            case 2:
+                body = <EntitiesStep />
+                break
+            case 3:
+                body = <CompleteStep />
+                break
+            default:
+                body = (
+                    <Row className="justify-content-center"> Invalid step selected</Row>
+                )
+        }
     }
     return (
         <Col
@@ -106,11 +202,15 @@ export function ContributionStepper({
                 selectedIdx={selectedIdx ?? 0}
                 activeIdx={maxIdx}
                 navigateCallback={(name: string) =>
-                    navigate(`/contribute/${id_persistent}/${name.toLowerCase()}`)
+                    navigate(
+                        `/contribute/${
+                            contribution.value?.idPersistent
+                        }/${name.toLowerCase()}`
+                    )
                 }
             />
             <Row className="d-block flex-basis-0 flex-grow-1 overflow-auto scroll-gutter h-100">
-                <Col className="ps-5 pe-5 h-100">{children}</Col>
+                <Col className="ps-5 pe-5 h-100">{body}</Col>
             </Row>
         </Col>
     )
@@ -172,21 +272,29 @@ export type UploadFormArgs = {
 }
 const uploadSchema = yup.object({
     name: yup.string().ensure().min(8),
-    description: yup.string().ensure().min(50),
+    description: yup.string(),
     hasHeader: yup.boolean(),
     file: yup.mixed().nullable().defined()
 })
 
-export function UploadForm({ onSubmit }: { onSubmit: SubmitUploadCallback }) {
+export function UploadForm() {
+    const navigate = useNavigate()
+    const dispatch = useAppDispatch()
     return (
         <Formik
             onSubmit={(values) => {
                 if (values.file !== undefined) {
-                    onSubmit({
-                        name: values.name,
-                        description: values.description,
-                        hasHeader: values.hasHeader,
-                        file: values.file
+                    dispatch(
+                        uploadContribution({
+                            name: values.name,
+                            description: values.description,
+                            hasHeader: values.hasHeader,
+                            file: values.file
+                        })
+                    ).then((idPersistent) => {
+                        if (idPersistent !== undefined) {
+                            navigate('/contribute/' + idPersistent + '/columns')
+                        }
                     })
                 }
             }}
@@ -238,7 +346,7 @@ export function UploadFormBody({
     const buttonRef = useRef(null)
 
     return (
-        <Form noValidate onSubmit={handleSubmit} ref={containerRef}>
+        <Form noValidate onSubmit={handleSubmit} ref={containerRef} role="form">
             <FormField
                 name="name"
                 handleChange={handleChange}
