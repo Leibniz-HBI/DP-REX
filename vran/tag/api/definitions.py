@@ -18,6 +18,7 @@ from vran.exception import (
 )
 from vran.tag.api.models_api import TagDefinitionResponse
 from vran.tag.models_django import TagDefinition as TagDefinitionDb
+from vran.tag.models_django import TagDefinitionHistory as TagDefinitionHistoryDb
 from vran.tag.queue import (
     get_tag_definition_name_path,
     get_tag_definition_name_path_from_parts,
@@ -172,7 +173,7 @@ def tag_definition_api_to_db(
                 "has version but no id_persistent."
             )
         persistent_id = str(uuid4())
-    return TagDefinitionDb.change_or_create(
+    return TagDefinitionHistoryDb.change_or_create(
         id_persistent=persistent_id,
         id_parent_persistent=tag_definition.id_parent_persistent,
         version=tag_definition.version,

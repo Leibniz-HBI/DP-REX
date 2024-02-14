@@ -7,7 +7,12 @@ from django.db import models
 
 from vran.entity.models_django import Entity
 from vran.exception import ForbiddenException
-from vran.tag.models_django import TagDefinition, TagInstance, TagInstanceHistory
+from vran.tag.models_django import (
+    TagDefinition,
+    TagDefinitionHistory,
+    TagInstance,
+    TagInstanceHistory,
+)
 from vran.util import VranUser
 
 
@@ -248,7 +253,7 @@ class EntityConflictResolution(AbstractConflictResolution):
         Entity, on_delete=models.CASCADE, related_name="+"
     )
     tag_definition = models.ForeignKey(
-        TagDefinition, on_delete=models.CASCADE, related_name="+"
+        TagDefinitionHistory, on_delete=models.CASCADE, related_name="+"
     )
 
     @classmethod
@@ -268,9 +273,7 @@ class EntityConflictResolution(AbstractConflictResolution):
             tag_definition_most_recent=models.Subquery(
                 TagDefinition.objects.filter(  # pylint: disable=no-member
                     id_persistent=models.OuterRef("tag_definition__id_persistent")
-                )
-                .order_by(models.F("previous_version").desc(nulls_last=True))
-                .values(
+                ).values(
                     json=models.functions.JSONObject(
                         id="id",
                         id_persistent="id_persistent",
@@ -280,7 +283,9 @@ class EntityConflictResolution(AbstractConflictResolution):
                         curated="curated",
                         hidden="hidden",
                     )
-                )[:1]
+                )[
+                    :1
+                ]
             ),
             entity_origin_most_recent=models.Subquery(
                 Entity.objects.filter(  # pylint: disable=no-member
@@ -309,20 +314,20 @@ class EntityConflictResolution(AbstractConflictResolution):
                 )[:1]
             ),
             tag_instance_origin_most_recent=models.Subquery(
-                TagInstanceHistory.objects.filter(  # pylint: disable=no-member
+                TagInstance.objects.filter(  # pylint: disable=no-member
                     id_persistent=models.OuterRef("tag_instance_origin__id_persistent")
-                )
-                .order_by(models.F("previous_version").desc(nulls_last=True))
-                .values(
+                ).values(
                     json=models.functions.JSONObject(
                         id="id",
                         id_persistent="id_persistent",
                         value="value",
                     )
-                )[:1]
+                )[
+                    :1
+                ]
             ),
             tag_instance_destination_most_recent=models.Subquery(
-                TagInstanceHistory.objects.filter(  # pylint: disable=no-member
+                TagInstance.objects.filter(  # pylint: disable=no-member
                     models.Q(
                         id_persistent=models.OuterRef(
                             "tag_instance_destination__id_persistent"
@@ -339,15 +344,15 @@ class EntityConflictResolution(AbstractConflictResolution):
                             "tag_definition__id_persistent"
                         ),
                     )
-                )
-                .order_by(models.F("previous_version").desc(nulls_last=True))
-                .values(
+                ).values(
                     json=models.functions.JSONObject(
                         id="id",
                         id_persistent="id_persistent",
                         value="value",
                     )
-                )[:1]
+                )[
+                    :1
+                ]
             ),
         )
         non_recent_query_set = with_version_info.filter(
@@ -403,9 +408,11 @@ class EntityConflictResolution(AbstractConflictResolution):
         with_tag_definition_version_info = manager.annotate(
             id_tag_definition_most_recent=TagDefinition.objects.filter(  # pylint: disable=no-member
                 id_persistent=models.OuterRef("tag_definition__id_persistent")
-            )
-            .order_by(models.F("previous_version").desc(nulls_last=True))
-            .values("id")[:1]
+            ).values(
+                "id"
+            )[
+                :1
+            ]
         )
         only_with_recent_tag_definitions = with_tag_definition_version_info.filter(
             tag_definition__id=models.F("id_tag_definition_most_recent")
@@ -433,18 +440,20 @@ class EntityConflictResolution(AbstractConflictResolution):
             )
         )
         with_instance_origin_version_info = only_with_recent_entity_destinations.annotate(
-            id_tag_instance_origin_most_recent=TagInstanceHistory.objects.filter(  # pylint: disable=no-member
+            id_tag_instance_origin_most_recent=TagInstance.objects.filter(  # pylint: disable=no-member
                 id_persistent=models.OuterRef("tag_instance_origin__id_persistent")
-            )
-            .order_by(models.F("previous_version").desc(nulls_last=True))
-            .values("id")[:1]
+            ).values(
+                "id"
+            )[
+                :1
+            ]
         )
         only_with_recent_instance_origin = with_instance_origin_version_info.filter(
             tag_instance_origin__id=models.F("id_tag_instance_origin_most_recent")
         )
         with_instance_destination_version_info = only_with_recent_instance_origin.annotate(
             id_tag_instance_destination_most_recent=models.Subquery(
-                TagInstanceHistory.objects.filter(  # pylint: disable=no-member
+                TagInstance.objects.filter(  # pylint: disable=no-member
                     models.Q(
                         id_persistent=models.OuterRef(
                             "tag_instance_destination__id_persistent"
@@ -461,9 +470,7 @@ class EntityConflictResolution(AbstractConflictResolution):
                             "merge_request__id_destination_persistent"
                         ),
                     )
-                )
-                .order_by(models.F("previous_version").desc(nulls_last=True))
-                .values("id")[:1]
+                ).values("id")[:1]
             )
         )
         only_with_recent_instance_destination = (

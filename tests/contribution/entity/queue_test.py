@@ -10,7 +10,12 @@ import vran.contribution.entity.queue as q
 from vran.contribution.entity.models_django import EntityDuplicate
 from vran.contribution.models_django import ContributionCandidate
 from vran.entity.models_django import Entity
-from vran.tag.models_django import TagDefinition, TagInstance, TagInstanceHistory
+from vran.tag.models_django import (
+    TagDefinition,
+    TagDefinitionHistory,
+    TagInstance,
+    TagInstanceHistory,
+)
 
 
 @pytest.fixture()
@@ -66,7 +71,7 @@ def test_removes_contribution_candidate_from_others(entity_duplicate):
 
 @pytest.fixture
 def tag_def(user):
-    return TagDefinition.objects.create(  # pylint: disable = no-member
+    return TagDefinitionHistory.objects.create(  # pylint: disable = no-member
         id_persistent=c.id_tag_def_test,
         name=c.name_tag_def_test,
         type=TagDefinition.STRING,
@@ -77,7 +82,7 @@ def tag_def(user):
 
 @pytest.fixture
 def tag_def1(user):
-    return TagDefinition.objects.create(  # pylint: disable = no-member
+    return TagDefinitionHistory.objects.create(  # pylint: disable = no-member
         id_persistent=c.id_tag_def_test1,
         id_parent_persistent=c.id_tag_def_test,
         name=c.name_tag_def_test1,

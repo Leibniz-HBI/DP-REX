@@ -8,7 +8,7 @@ import tests.contribution.api.integration.requests as req_contrib
 import tests.user.common as cu
 from vran.contribution.models_django import ContributionCandidate
 from vran.contribution.tag_definition.models_django import TagDefinitionContribution
-from vran.tag.models_django import TagDefinition
+from vran.tag.models_django import TagDefinition, TagDefinitionHistory
 from vran.util.auth import NotAuthenticatedException, VranUser
 
 
@@ -203,7 +203,7 @@ def test_complete_assignment(auth_server):
         )
     )
     id_tag_definition_persistent = str(uuid4())
-    TagDefinition.objects.create(  # pylint: disable=no-member
+    TagDefinitionHistory.objects.create(  # pylint: disable=no-member
         name="tag definition_test",
         id_parent_persistent=None,
         type=TagDefinition.INNER,

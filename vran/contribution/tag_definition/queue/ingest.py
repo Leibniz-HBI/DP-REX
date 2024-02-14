@@ -13,7 +13,11 @@ from vran.contribution.tag_definition.queue.util import read_csv_of_candidate
 from vran.entity.models_django import Entity
 from vran.exception import TagDefinitionExistsException
 from vran.merge_request.models_django import TagMergeRequest
-from vran.tag.models_django import TagDefinition, TagInstanceHistory
+from vran.tag.models_django import (
+    TagDefinition,
+    TagDefinitionHistory,
+    TagInstanceHistory,
+)
 
 
 def mk_display_txt_extractor(idx):
@@ -86,7 +90,10 @@ def ingest_values_from_csv(id_contribution_persistent):
                     id_tag_definition_origin_persistent = str(uuid4())
                     for idx in range(1, 10):
                         try:
-                            tag_definition_origin, _ = TagDefinition.change_or_create(
+                            (
+                                tag_definition_origin,
+                                _,
+                            ) = TagDefinitionHistory.change_or_create(
                                 id_persistent=id_tag_definition_origin_persistent,
                                 name=merge_request_name,
                                 id_parent_persistent=tag_definition_destination.id_persistent,
