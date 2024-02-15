@@ -14,6 +14,7 @@ from vran.exception import (
     ForbiddenException,
     InvalidTagValueException,
     NoParentTagException,
+    TagDefinitionDisabledException,
     TagDefinitionExistsException,
     TagDefinitionMissingException,
     TagDefinitionPermissionException,
@@ -42,6 +43,13 @@ class TagDefinitionAbstract(models.Model):
     )
     curated = models.BooleanField(default=False)
     hidden = models.BooleanField(default=False)
+    """Flag for not showing the tag definition.
+    This is currently set for tag definitions for new merge requests.
+    It is not respected when retrieving tag definitions.
+    This is done to allow edit of user data."""
+    disabled = models.BooleanField(default=False)
+    """Flag for indicating soft delete.
+    This is necessary to ensure that old versions are kept in the history."""
 
     class Meta:
         "Meta class for abstract tag definition django model"
@@ -53,7 +61,9 @@ class TagDefinitionHistory(TagDefinitionAbstract):
     "Django ORM model for tag definitions history."
 
     @classmethod
-    def most_recent_query_set(cls, manager=None, include_hidden=False):
+    def most_recent_query_set(
+        cls, manager=None, include_hidden=False, include_disabled=False
+    ):
         "Get a query set containing all most recent tag definitions."
         if manager is None:
             manager = cls.objects  # pylint: disable=no-member
@@ -66,9 +76,11 @@ class TagDefinitionHistory(TagDefinitionAbstract):
                 .values("id")[:1]
             )
         ).filter(id=models.F("id_most_recent"))
-        if include_hidden:
-            return most_recent
-        return most_recent.filter(hidden=False)
+        if not include_hidden:
+            most_recent = most_recent.filter(hidden=False)
+        if not include_disabled:
+            most_recent.filter(disabled=False)
+        return most_recent
 
     @classmethod
     def most_recent_by_id_query_set(cls, id_persistent):
@@ -178,6 +190,7 @@ class TagDefinitionHistory(TagDefinitionAbstract):
             or other.owner != self.owner
             or other.curated != self.curated
             or other.hidden != self.hidden
+            or other.disabled != self.disabled
         )
 
 
@@ -211,13 +224,16 @@ class TagDefinition(TagDefinitionAbstract):
         )
 
     @classmethod
-    def most_recent_children(cls, id_persistent: Optional[str]):
+    def children_query_set(
+        cls, id_persistent: Optional[str], user: Optional[VranUser] = None
+    ):
         "Get the most recent versions of child tags."
-        return list(
-            cls.objects.filter(  # pylint: disable=no-member
-                id_parent_persistent=id_persistent
-            )
+        children = cls.objects.filter(  # pylint: disable=no-member
+            id_parent_persistent=id_persistent, disabled=False
         )
+        if user is None:
+            return children.filter(hidden=False)
+        return children.filter(models.Q(hidden=False) | models.Q(owner=user))
 
     def _get_history_entry(self):
         # pylint: disable=no-member
@@ -362,6 +378,8 @@ class TagInstanceHistory(TagInstanceAbstract):
             tag_def = TagDefinition.most_recent_by_id(id_tag_definition_persistent)
             if not tag_def.has_write_access(user):
                 raise TagDefinitionPermissionException(tag_def.id_persistent)
+            if tag_def.disabled:
+                raise TagDefinitionDisabledException(tag_def.id_persistent)
             value = tag_def.check_value(value)
         except TagDefinition.DoesNotExist as exc:  # pylint: disable=no-member
             raise TagDefinitionMissingException(id_tag_definition_persistent) from exc
@@ -552,6 +570,7 @@ class OwnershipRequest(models.Model):
                     ),
                     curated="curated",
                     hidden="hidden",
+                    disabled="disabled",
                 )
             )
         )

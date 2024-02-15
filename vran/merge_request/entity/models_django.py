@@ -282,6 +282,7 @@ class EntityConflictResolution(AbstractConflictResolution):
                         type="type",
                         curated="curated",
                         hidden="hidden",
+                        disabled="disabled",
                     )
                 )[
                     :1
