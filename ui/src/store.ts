@@ -10,6 +10,8 @@ import { tableSelectionSlice } from './table/selection/slice'
 import { entityMergeRequestConflictSlice } from './merge_request/entity/conflicts/slice'
 import { entityMergeRequestsReducer } from './merge_request/entity/slice'
 import { displayTxtManagementReducer } from './management/display_txt/slice'
+import { tagMergeRequestsReducer } from './merge_request/slice'
+import { tagMergeRequestConflictsReducer } from './merge_request/conflicts/slice'
 
 const rootReducer = combineReducers({
     notification: notificationReducer,
@@ -21,6 +23,8 @@ const rootReducer = combineReducers({
     contribution: contributionSlice.reducer,
     tableSelection: tableSelectionSlice.reducer,
     entityMergeRequests: entityMergeRequestsReducer,
+    tagMergeRequests: tagMergeRequestsReducer,
+    tagMergeRequestConflicts: tagMergeRequestConflictsReducer,
     entityMergeRequestConflicts: entityMergeRequestConflictSlice.reducer,
     displayTxtManagement: displayTxtManagementReducer
 })

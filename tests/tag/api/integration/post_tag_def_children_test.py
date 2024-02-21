@@ -1,9 +1,10 @@
-# pylint: disable=missing-module-docstring, missing-function-docstring,redefined-outer-name,invalid-name
+# pylint: disable=missing-module-docstring, missing-function-docstring,redefined-outer-name,invalid-name,unused-argument
 from unittest.mock import MagicMock, patch
 
 from django.db import DatabaseError
 
 from tests.tag.api.integration import requests as r
+from tests.utils import assert_versioned, sort_versioned
 
 
 def test_empty_db(auth_server):
@@ -36,9 +37,10 @@ def test_multi_root(auth_server, root_tag_def):
     req = r.post_tag_def_children(live_server.url, None, cookies=cookies)
     assert req.status_code == 200
     tag_definitions = req.json()["tag_definitions"]
-    assert len(tag_definitions) == 2
-    assert tag_definitions[0] == root_tag_def_rsps[0]
-    assert tag_definitions[1] == root_tag_def_rsps[1]
+    assert_versioned(
+        sort_versioned(tag_definitions),
+        sort_versioned(root_tag_def_rsps),
+    )
 
 
 def test_single_child(auth_server, root_tag_def, child_tag_def):
@@ -77,12 +79,17 @@ def test_multi_child(auth_server, root_tag_def, child_tag_def):
     )
     assert req.status_code == 200
     tag_definitions = req.json()["tag_definitions"]
-    assert len(tag_definitions) == 2
-    assert tag_definitions[0] == child_tag_def_rsps[0]
-    assert tag_definitions[1] == child_tag_def_rsps[1]
+    assert sort_versioned(tag_definitions) == sort_versioned(child_tag_def_rsps)
 
 
-def test_multi_child_no_disabled(auth_server, root_tag_def, child_tag_def):
+def test_does_not_include_disabled(auth_server, tag_def_disabled):
+    live_server, cookies = auth_server
+    rsp = r.post_tag_def_children(live_server.url, None, cookies=cookies)
+    assert rsp.status_code == 200
+    assert rsp.json() == {"tag_definitions": []}
+
+
+def test_multi_child_include_hidden_for_owner(auth_server, root_tag_def, child_tag_def):
     live_server, cookies = auth_server
     req = r.post_tag_def(live_server.url, root_tag_def, cookies=cookies)
     assert req.status_code == 200
@@ -95,19 +102,46 @@ def test_multi_child_no_disabled(auth_server, root_tag_def, child_tag_def):
     )
     assert req.status_code == 200
     child_tag_def_rsps = req.json()["tag_definitions"]
+    assert len(child_tag_def_rsps) == 2
     req = r.post_tag_def_children(
         live_server.url, root_tag_def_rsp_id_persistent, cookies=cookies
     )
     assert req.status_code == 200
     tag_definitions = req.json()["tag_definitions"]
-    assert tag_definitions == [child_tag_def_rsps[0]]
+    assert_versioned(
+        sort_versioned(tag_definitions), sort_versioned(child_tag_def_rsps)
+    )
+
+
+def test_multi_child_exclude_hidden_for_non_owner(
+    auth_server1, root_tag_def, child_tag_def
+):
+    live_server, cookies, cookies1 = auth_server1
+    req = r.post_tag_def(live_server.url, root_tag_def, cookies=cookies)
+    assert req.status_code == 200
+    root_tag_def_rsp_id_persistent = req.json()["tag_definitions"][0]["id_persistent"]
+    child_tag_def["id_parent_persistent"] = root_tag_def_rsp_id_persistent
+    child_tag_def1 = child_tag_def.copy()
+    child_tag_def1["hidden"] = True
+    req = r.post_tag_defs(
+        live_server.url, [child_tag_def, child_tag_def1], cookies=cookies
+    )
+    assert req.status_code == 200
+    child_tag_def_rsps = req.json()["tag_definitions"]
+    assert len(child_tag_def_rsps) == 2
+    req = r.post_tag_def_children(
+        live_server.url, root_tag_def_rsp_id_persistent, cookies=cookies1
+    )
+    assert req.status_code == 200
+    tag_definitions = req.json()["tag_definitions"]
+    assert_versioned(tag_definitions, [child_tag_def_rsps[0]])
 
 
 def test_bad_db(auth_server):
     live_server, cookies = auth_server
     mock = MagicMock()
     mock.side_effect = DatabaseError()
-    with patch("vran.tag.models_django.TagDefinition.most_recent_children", mock):
+    with patch("vran.tag.models_django.TagDefinition.children_query_set", mock):
         req = r.post_tag_def_children(live_server.url, None, cookies=cookies)
     assert req.status_code == 500
     assert req.json()["msg"] == "Database Error."

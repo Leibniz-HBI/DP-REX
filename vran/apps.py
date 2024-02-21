@@ -86,7 +86,7 @@ def populate_tag_definition_name_path_cache():
     from vran.tag.queue import update_tag_definition_name_path
 
     try:
-        roots = TagDefinition.most_recent_children(None)
+        roots = TagDefinition.children_query_set(None)
         for root in roots:
             enqueue(update_tag_definition_name_path, root.id_persistent, [])
     except (OperationalError, DatabaseError, ProgrammingError):

@@ -5,12 +5,16 @@ import tests.entity.common as ce
 import tests.merge_request.common as c
 from vran.contribution.models_django import ContributionCandidate
 from vran.merge_request.models_django import TagConflictResolution, TagMergeRequest
-from vran.tag.models_django import TagDefinition, TagInstanceHistory
+from vran.tag.models_django import (
+    TagDefinition,
+    TagDefinitionHistory,
+    TagInstanceHistory,
+)
 
 
 @pytest.fixture
 def destination_tag_def_for_mr(db, user):
-    return TagDefinition.objects.create(  # pylint: disable=no-member
+    return TagDefinitionHistory.objects.create(  # pylint: disable=no-member
         name=c.name_tag_def_destination,
         id_persistent=c.id_persistent_tag_def_destination,
         type=TagDefinition.STRING,
@@ -21,7 +25,7 @@ def destination_tag_def_for_mr(db, user):
 
 @pytest.fixture
 def destination_tag_def_for_mr_changed(destination_tag_def_for_mr):
-    tag_def, _ = TagDefinition.change_or_create(
+    tag_def, _ = TagDefinitionHistory.change_or_create(
         id_persistent=destination_tag_def_for_mr.id_persistent,
         version=destination_tag_def_for_mr.id,
         name="changed tag definition test",
@@ -33,7 +37,7 @@ def destination_tag_def_for_mr_changed(destination_tag_def_for_mr):
 
 @pytest.fixture
 def destination_tag_def_for_mr_user1(db, user1):
-    return TagDefinition.objects.create(  # pylint: disable=no-member
+    return TagDefinitionHistory.objects.create(  # pylint: disable=no-member
         name=c.name_tag_def_destination,
         id_persistent=c.id_persistent_tag_def_destination_fast_forward,
         type=TagDefinition.STRING,
@@ -44,7 +48,7 @@ def destination_tag_def_for_mr_user1(db, user1):
 
 @pytest.fixture
 def origin_tag_def_for_mr(db, user1):
-    return TagDefinition.objects.create(  # pylint: disable=no-member
+    return TagDefinitionHistory.objects.create(  # pylint: disable=no-member
         name=c.name_tag_def_origin,
         id_persistent=c.id_persistent_tag_def_origin,
         type=TagDefinition.STRING,
@@ -55,7 +59,7 @@ def origin_tag_def_for_mr(db, user1):
 
 @pytest.fixture
 def origin_tag_def_for_mr_changed(origin_tag_def_for_mr):
-    tag_def, _ = TagDefinition.change_or_create(
+    tag_def, _ = TagDefinitionHistory.change_or_create(
         id_persistent=origin_tag_def_for_mr.id_persistent,
         version=origin_tag_def_for_mr.id,
         name="changed tag definition test",
@@ -93,6 +97,22 @@ def merge_request_user_fast_forward(
 
 
 @pytest.fixture
+def merge_request_user_fast_forward_disable_origin(
+    db, origin_tag_def_for_mr, destination_tag_def_for_mr_user1, contribution_for_mr
+):
+    return TagMergeRequest.objects.create(  # pylint: disable=no-member
+        id_origin_persistent=origin_tag_def_for_mr.id_persistent,
+        id_destination_persistent=destination_tag_def_for_mr_user1.id_persistent,
+        created_by=origin_tag_def_for_mr.owner,
+        assigned_to=destination_tag_def_for_mr_user1.owner,
+        created_at=c.time_merge_request,
+        id_persistent=c.id_persistent_merge_request_fast_forward,
+        contribution_candidate=contribution_for_mr,
+        disable_origin_on_merge=True,
+    )
+
+
+@pytest.fixture
 def merge_request_user(
     db, origin_tag_def_for_mr, destination_tag_def_for_mr, contribution_for_mr
 ):
@@ -108,11 +128,27 @@ def merge_request_user(
 
 
 @pytest.fixture
+def merge_request_user_disable_origin(
+    db, origin_tag_def_for_mr, destination_tag_def_for_mr, contribution_for_mr
+):
+    return TagMergeRequest.objects.create(  # pylint: disable=no-member
+        id_origin_persistent=origin_tag_def_for_mr.id_persistent,
+        id_destination_persistent=destination_tag_def_for_mr.id_persistent,
+        created_by=origin_tag_def_for_mr.owner,
+        assigned_to=destination_tag_def_for_mr.owner,
+        created_at=c.time_merge_request,
+        id_persistent=c.id_persistent_merge_request,
+        contribution_candidate=contribution_for_mr,
+        disable_origin_on_merge=True,
+    )
+
+
+@pytest.fixture
 def destination_tag_def_for_mr1(db, user1):
-    return TagDefinition.objects.create(  # pylint: disable=no-member
+    return TagDefinitionHistory.objects.create(  # pylint: disable=no-member
         name=c.name_tag_def_destination1,
         id_persistent=c.id_persistent_tag_def_destination1,
-        type=TagDefinition.STRING,
+        type=TagDefinitionHistory.STRING,
         time_edit=c.time_tag_def_destination1,
         owner=user1,
     )
@@ -120,7 +156,7 @@ def destination_tag_def_for_mr1(db, user1):
 
 @pytest.fixture
 def origin_tag_def_for_mr1(db, user):
-    return TagDefinition.objects.create(  # pylint: disable=no-member
+    return TagDefinitionHistory.objects.create(  # pylint: disable=no-member
         name=c.name_tag_def_origin1,
         id_persistent=c.id_persistent_tag_def_origin1,
         type=TagDefinition.STRING,

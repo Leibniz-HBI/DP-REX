@@ -33,6 +33,20 @@ def test_no_id_version(auth_server, float_tag):
     )
 
 
+def test_disabled_tag(auth_server, tag_def_disabled, entity0):
+    live_server, cookies = auth_server
+    req = r.post_tag_instance(
+        live_server.url,
+        {
+            "id_tag_definition_persistent": tag_def_disabled.id_persistent,
+            "id_entity_persistent": entity0.id_persistent,
+            "value": "some_value",
+        },
+        cookies=cookies,
+    )
+    assert req.status_code == 403
+
+
 def test_concurrent_modification(auth_server, float_tag):
     live_server, cookies = auth_server
     req = r.post_tag_instance(live_server.url, float_tag, cookies=cookies)
@@ -114,7 +128,6 @@ def test_no_tag_def(auth_server, entity0):
 
 def test_no_entity(auth_server, tag_def):
     live_server, cookies = auth_server
-    tag_def.save()
     tag_inst = {
         "value": "2.0",
         "id_tag_definition_persistent": tag_def.id_persistent,

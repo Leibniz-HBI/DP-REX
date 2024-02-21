@@ -14,6 +14,7 @@ from vran.exception import (
     ForbiddenException,
     InvalidTagValueException,
     NoParentTagException,
+    TagDefinitionDisabledException,
     TagDefinitionExistsException,
     TagDefinitionMissingException,
     TagDefinitionPermissionException,
@@ -23,8 +24,8 @@ from vran.util import VranUser
 from vran.util.django import change_or_create_versioned
 
 
-class TagDefinition(models.Model):
-    "Django ORM model for tag definitions."
+class TagDefinitionAbstract(models.Model):
+    "Abstract Django ORM model for tag definitions."
     INNER = "INR"
     FLOAT = "FLT"
     STRING = "STR"
@@ -42,45 +43,26 @@ class TagDefinition(models.Model):
     )
     curated = models.BooleanField(default=False)
     hidden = models.BooleanField(default=False)
+    """Flag for not showing the tag definition.
+    This is currently set for tag definitions for new merge requests.
+    """
+    disabled = models.BooleanField(default=False)
+    """Flag for indicating soft delete.
+    This is necessary to ensure that old versions are kept in the history."""
 
-    def set_curated(self, time_edit):
-        "Set curated state for a tag definition."
-        return self.change_or_create(
-            self.id_persistent,
-            time_edit,
-            name=self.name,
-            id_parent_persistent=self.id_parent_persistent,
-            version=self.id,  # pylint: disable=no-member
-            owner_id=None,
-            curated=True,
-        )
+    class Meta:
+        "Meta class for abstract tag definition django model"
+        # pylint: disable=too-few-public-methods
+        abstract = True
 
-    def set_owner(self, user: VranUser, time_edit):
-        "Set curated state for a tag definition."
-        return self.change_or_create(
-            self.id_persistent,
-            time_edit,
-            name=self.name,
-            id_parent_persistent=self.id_parent_persistent,
-            version=self.id,  # pylint: disable=no-member
-            owner_id=user.id,
-            curated=False,
-        )
+
+class TagDefinitionHistory(TagDefinitionAbstract):
+    "Django ORM model for tag definitions history."
 
     @classmethod
-    def most_recent_by_id(cls, id_persistent):
-        """Return the most recent version of a tag definition."""
-        return cls.most_recent_by_id_query_set(id_persistent).get()
-
-    @classmethod
-    def most_recent_by_id_query_set(cls, id_persistent):
-        """Return a query for the most recent version of a tag definition."""
-        return cls.objects.filter(  # pylint: disable=no-member
-            id_persistent=id_persistent
-        ).order_by(models.F("previous_version").desc(nulls_last=True))[:1]
-
-    @classmethod
-    def most_recent_query_set(cls, manager=None, include_hidden=False):
+    def most_recent_query_set(
+        cls, manager=None, include_hidden=False, include_disabled=False
+    ):
         "Get a query set containing all most recent tag definitions."
         if manager is None:
             manager = cls.objects  # pylint: disable=no-member
@@ -93,15 +75,47 @@ class TagDefinition(models.Model):
                 .values("id")[:1]
             )
         ).filter(id=models.F("id_most_recent"))
-        if include_hidden:
-            return most_recent
-        return most_recent.filter(hidden=False)
+        if not include_hidden:
+            most_recent = most_recent.filter(hidden=False)
+        if not include_disabled:
+            most_recent.filter(disabled=False)
+        return most_recent
 
     @classmethod
-    def most_recent_children(cls, id_persistent: Optional[str]):
-        "Get the most recent versions of child tags."
-        most_recent = cls.most_recent_query_set()
-        return list(most_recent.filter(id_parent_persistent=id_persistent))
+    def most_recent_by_id_query_set(cls, id_persistent):
+        """Return a query for the most recent version of a tag definition."""
+        return cls.most_recent_query_set().filter(  # pylint: disable=no-member
+            id_persistent=id_persistent
+        )
+
+    @classmethod
+    def most_recent_by_id(cls, id_persistent):
+        """Return the most recent version of a tag definition."""
+        return cls.most_recent_by_id_query_set(id_persistent).get()
+
+    def set_curated(self, time_edit):
+        "Set curated state for a tag definition."
+        return TagDefinitionHistory.change_or_create(
+            self.id_persistent,
+            time_edit,
+            name=self.name,
+            id_parent_persistent=self.id_parent_persistent,
+            version=self.id,  # pylint: disable=no-member
+            owner_id=None,
+            curated=True,
+        )
+
+    def set_owner(self, user: VranUser, time_edit):
+        "Set curated state for a tag definition."
+        return TagDefinitionHistory.change_or_create(
+            self.id_persistent,
+            time_edit,
+            name=self.name,
+            id_parent_persistent=self.id_parent_persistent,
+            version=self.id,  # pylint: disable=no-member
+            owner_id=user.id,
+            curated=False,
+        )
 
     @classmethod
     def change_or_create(  # pylint: disable=too-many-arguments
@@ -175,7 +189,62 @@ class TagDefinition(models.Model):
             or other.owner != self.owner
             or other.curated != self.curated
             or other.hidden != self.hidden
+            or other.disabled != self.disabled
         )
+
+
+class TagDefinition(TagDefinitionAbstract):
+    "Django ORM model for tag definitions."
+
+    class Meta:
+        "Meta class for tag definition view to ensure django does not create a table."
+        # pylint: disable=too-few-public-methods
+        managed = False
+
+    @classmethod
+    def query_set(cls, manager=None, include_hidden=False):
+        "Get a query set containing all most recent tag definitions."
+        if manager is None:
+            manager = cls.objects.all()  # pylint: disable=no-member
+        if include_hidden:
+            return manager
+        return manager.filter(hidden=False)
+
+    @classmethod
+    def most_recent_by_id(cls, id_persistent):
+        """Return the most recent version of a tag definition."""
+        return cls.most_recent_by_id_query_set(id_persistent).get()
+
+    @classmethod
+    def most_recent_by_id_query_set(cls, id_persistent):
+        """Return a query for the most recent version of a tag definition."""
+        return cls.objects.filter(  # pylint: disable=no-member
+            id_persistent=id_persistent
+        )
+
+    @classmethod
+    def children_query_set(
+        cls, id_persistent: Optional[str], user: Optional[VranUser] = None
+    ):
+        "Get the most recent versions of child tags."
+        children = cls.objects.filter(  # pylint: disable=no-member
+            id_parent_persistent=id_persistent, disabled=False
+        )
+        if user is None:
+            return children.filter(hidden=False)
+        return children.filter(models.Q(hidden=False) | models.Q(owner=user))
+
+    def _get_history_entry(self):
+        # pylint: disable=no-member
+        return TagDefinitionHistory.objects.filter(id=self.id).get()
+
+    def set_curated(self, time_edit):
+        "Set curated state for a tag definition."
+        return self._get_history_entry().set_curated(time_edit)
+
+    def set_owner(self, user: VranUser, time_edit):
+        "Set curated state for a tag definition."
+        return self._get_history_entry().set_owner(user, time_edit)
 
     def check_value(self, val: str):
         "Check if a value is of the type for this tag."
@@ -197,15 +266,16 @@ class TagDefinition(models.Model):
     @classmethod
     def for_user(cls, user: VranUser, include_curated=False):
         "Get all tag definitions for a user."
-        most_recent = cls.most_recent_query_set()
         if include_curated:
             if not user.permission_group in [
                 VranUser.EDITOR,
                 VranUser.COMMISSIONER,
             ]:
                 raise ForbiddenException("Tag Definition", "")
-            return most_recent.filter(models.Q(curated=True) | models.Q(owner=user))
-        return most_recent.filter(owner=user)
+            return cls.objects.filter(  # pylint: disable=no-member
+                models.Q(curated=True) | models.Q(owner=user)
+            )
+        return cls.objects.filter(owner=user)  # pylint: disable=no-member
 
     def has_write_access(self, user: VranUser):
         "Check wether a user can write to the tag definition."
@@ -221,7 +291,7 @@ class TagDefinition(models.Model):
     @classmethod
     def curated_query_set(cls):
         "Get most recent curated tag definition"
-        return cls.most_recent_query_set().filter(curated=True)
+        return cls.objects.filter(curated=True)  # pylint: disable=no-member
 
 
 class TagInstanceAbstract(models.Model):
@@ -306,7 +376,9 @@ class TagInstanceHistory(TagInstanceAbstract):
         try:
             tag_def = TagDefinition.most_recent_by_id(id_tag_definition_persistent)
             if not tag_def.has_write_access(user):
-                raise TagDefinitionPermissionException(tag_def)
+                raise TagDefinitionPermissionException(tag_def.id_persistent)
+            if tag_def.disabled:
+                raise TagDefinitionDisabledException(tag_def.id_persistent)
             value = tag_def.check_value(value)
         except TagDefinition.DoesNotExist as exc:  # pylint: disable=no-member
             raise TagDefinitionMissingException(id_tag_definition_persistent) from exc
@@ -497,6 +569,7 @@ class OwnershipRequest(models.Model):
                     ),
                     curated="curated",
                     hidden="hidden",
+                    disabled="disabled",
                 )
             )
         )

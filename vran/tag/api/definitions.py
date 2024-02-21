@@ -18,6 +18,7 @@ from vran.exception import (
 )
 from vran.tag.api.models_api import TagDefinitionResponse
 from vran.tag.models_django import TagDefinition as TagDefinitionDb
+from vran.tag.models_django import TagDefinitionHistory as TagDefinitionHistoryDb
 from vran.tag.queue import (
     get_tag_definition_name_path,
     get_tag_definition_name_path_from_parts,
@@ -51,6 +52,7 @@ class TagDefinitionRequest(Schema):
     type: str
     owner: Optional[str]
     hidden: Optional[bool]
+    disabled: Optional[bool]
 
 
 class TagDefinitionRequestList(Schema):
@@ -135,12 +137,15 @@ def post_tag_definitions(
 
 
 @router.post("/children", response={200: TagDefinitionResponseList, 500: ApiError})
-def post_get_tag_definition_children(_, post_children_request: PostGetChildrenRequest):
+def post_get_tag_definition_children(
+    request: HttpRequest, post_children_request: PostGetChildrenRequest
+):
     "Get tag definitions by id_parent_persistent."
+    user = check_user(request)
     try:
         child_definitions_db = list(
-            TagDefinitionDb.most_recent_children(
-                post_children_request.id_parent_persistent
+            TagDefinitionDb.children_query_set(
+                post_children_request.id_parent_persistent, user
             )
         )
         return 200, TagDefinitionResponseList(
@@ -172,7 +177,7 @@ def tag_definition_api_to_db(
                 "has version but no id_persistent."
             )
         persistent_id = str(uuid4())
-    return TagDefinitionDb.change_or_create(
+    return TagDefinitionHistoryDb.change_or_create(
         id_persistent=persistent_id,
         id_parent_persistent=tag_definition.id_parent_persistent,
         version=tag_definition.version,
@@ -181,6 +186,7 @@ def tag_definition_api_to_db(
         type=_tag_type_mapping_api_to_db[tag_definition.type],
         owner=owner,
         hidden=tag_definition.hidden or False,
+        disabled=tag_definition.disabled or False,
     )
 
 
@@ -201,6 +207,7 @@ def tag_definition_db_to_api(tag_definition: TagDefinitionDb) -> TagDefinitionRe
         owner=username,
         curated=tag_definition.curated,
         hidden=tag_definition.hidden,
+        disabled=tag_definition.disabled,
     )
 
 
@@ -224,4 +231,5 @@ def tag_definition_db_dict_to_api(
         owner=username,
         curated=tag_definition["curated"],
         hidden=tag_definition["hidden"],
+        disabled=tag_definition["disabled"],
     )

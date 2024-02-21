@@ -7,10 +7,11 @@ import tests.person.common as cp
 import tests.tag.common as c
 from vran.exception import (
     EntityMissingException,
+    TagDefinitionDisabledException,
     TagDefinitionMissingException,
     TagDefinitionPermissionException,
 )
-from vran.tag.models_django import TagDefinition, TagInstance, TagInstanceHistory
+from vran.tag.models_django import TagInstance, TagInstanceHistory
 
 
 @pytest.fixture
@@ -130,9 +131,22 @@ def test_tag_def_missing(entity0, user):
 
 
 @pytest.mark.django_db
+def test_disabled_tag(tag_def_disabled, entity0):
+    id_persistent = "7693b6cd-b0da-4207-adc1-e15f367b010a"
+    with pytest.raises(TagDefinitionDisabledException):
+        TagInstanceHistory.change_or_create(
+            id_persistent=id_persistent,
+            id_tag_definition_persistent=tag_def_disabled.id_persistent,
+            id_entity_persistent=entity0.id_persistent,
+            value="some value",
+            user=tag_def_disabled.owner,
+            time_edit=c.time_edit_test,
+        )
+
+
+@pytest.mark.django_db
 def test_tag_def_no_permission(entity0, tag_def_user, user1):
     entity0.save()
-    tag_def_user.save()
     with pytest.raises(TagDefinitionPermissionException) as exc:
         TagInstanceHistory.change_or_create(
             id_persistent=c.id_tag_persistent_test,
@@ -142,42 +156,12 @@ def test_tag_def_no_permission(entity0, tag_def_user, user1):
             id_entity_persistent=entity0.id_persistent,
             id_tag_definition_persistent=c.id_tag_def_persistent_test_user,
         )
-    assert exc.value.args[0] == tag_def_user
+    assert exc.value.args[0] == tag_def_user.id_persistent
 
 
 @pytest.mark.django_db
 def test_add_tag_root(entity0, tag_def_user):
     entity0.save()
-    tag_def_user.save()
-    ret, _ = TagInstanceHistory.change_or_create(
-        id_persistent=c.id_tag_persistent_test,
-        time_edit=c.time_edit_test,
-        user=tag_def_user.owner,
-        id_entity_persistent=entity0.id_persistent,
-        id_tag_definition_persistent=tag_def_user.id_persistent,
-        value="2.0",
-    )
-    assert ret.value == "2.0"
-    assert ret.id_persistent == c.id_tag_persistent_test
-    assert ret.id_entity_persistent == entity0.id_persistent
-    assert ret.id_tag_definition_persistent == tag_def_user.id_persistent
-    assert ret.time_edit == c.time_edit_test
-    assert ret.previous_version is None
-
-
-@pytest.mark.django_db
-def test_add_tag_child(entity0, tag_def_user):
-    parent_tag, _ = TagDefinition.change_or_create(
-        id_persistent=c.id_tag_def_parent_persistent_test,
-        id_parent_persistent=None,
-        time_edit=c.time_edit_test,
-        name=c.name_tag_def_test,
-        type=TagDefinition.INNER,
-    )
-    parent_tag.save()
-    entity0.save()
-    tag_def_user.id_parent_persistent = c.id_tag_def_parent_persistent_test
-    tag_def_user.save()
     ret, _ = TagInstanceHistory.change_or_create(
         id_persistent=c.id_tag_persistent_test,
         time_edit=c.time_edit_test,
@@ -196,14 +180,12 @@ def test_add_tag_child(entity0, tag_def_user):
 
 @pytest.mark.django_db
 def test_empty_chunk(tag_def):
-    tag_def.save()
     ret = TagInstance.by_tag_chunked(tag_def.id_persistent, 2, 3)
     assert ret == []
 
 
 @pytest.mark.django_db
 def test_chunk_versions(tag_def):
-    tag_def.save()
     last_values = []
     last_ids = []
     for i in range(10):
@@ -229,7 +211,6 @@ def test_chunk_versions(tag_def):
 
 @pytest.mark.django_db
 def test_chunk_filter_tag_instance(tag_def):
-    tag_def.save()
     for i in range(10):
         tag = TagInstanceHistory(
             id_persistent=f"id_tag_test{i}",

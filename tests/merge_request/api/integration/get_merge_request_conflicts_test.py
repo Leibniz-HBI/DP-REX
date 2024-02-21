@@ -10,7 +10,7 @@ from tests.user import common as cu
 from tests.utils import assert_versioned, format_datetime
 from vran.exception import NotAuthenticatedException
 from vran.merge_request.models_django import TagConflictResolution
-from vran.tag.models_django import TagDefinition, TagInstanceHistory
+from vran.tag.models_django import TagDefinitionHistory, TagInstanceHistory
 
 
 def test_unknown_user(auth_server):
@@ -70,6 +70,7 @@ def test_conflicts_no_resolution(
             "id_persistent": c.id_persistent_merge_request,
             "created_at": format_datetime(c.time_merge_request),
             "state": "OPEN",
+            "disable_origin_on_merge": False,
             "origin": {
                 "id_persistent": c.id_persistent_tag_def_origin,
                 "id_parent_persistent": None,
@@ -79,6 +80,7 @@ def test_conflicts_no_resolution(
                 "owner": "test-user1",
                 "curated": False,
                 "hidden": False,
+                "disabled": False,
             },
             "destination": {
                 "id_persistent": c.id_persistent_tag_def_destination,
@@ -89,6 +91,7 @@ def test_conflicts_no_resolution(
                 "owner": "test-user",
                 "curated": False,
                 "hidden": False,
+                "disabled": False,
             },
         },
     )
@@ -172,6 +175,7 @@ def test_conflicts_same_value(
             "id_persistent": c.id_persistent_merge_request,
             "created_at": format_datetime(c.time_merge_request),
             "state": "OPEN",
+            "disable_origin_on_merge": False,
             "origin": {
                 "id_persistent": c.id_persistent_tag_def_origin,
                 "id_parent_persistent": None,
@@ -181,6 +185,7 @@ def test_conflicts_same_value(
                 "owner": "test-user1",
                 "curated": False,
                 "hidden": False,
+                "disabled": False,
             },
             "destination": {
                 "id_persistent": c.id_persistent_tag_def_destination,
@@ -191,6 +196,7 @@ def test_conflicts_same_value(
                 "owner": "test-user",
                 "curated": False,
                 "hidden": False,
+                "disabled": False,
             },
         },
     )
@@ -227,6 +233,7 @@ def test_conflict_resolved(
             "id_persistent": c.id_persistent_merge_request,
             "created_at": format_datetime(c.time_merge_request),
             "state": "OPEN",
+            "disable_origin_on_merge": False,
             "origin": {
                 "id_persistent": c.id_persistent_tag_def_origin,
                 "id_parent_persistent": None,
@@ -236,6 +243,7 @@ def test_conflict_resolved(
                 "owner": "test-user1",
                 "curated": False,
                 "hidden": False,
+                "disabled": False,
             },
             "destination": {
                 "id_persistent": c.id_persistent_tag_def_destination,
@@ -246,6 +254,7 @@ def test_conflict_resolved(
                 "owner": "test-user",
                 "curated": False,
                 "hidden": False,
+                "disabled": False,
             },
         },
     )
@@ -292,7 +301,7 @@ def test_conflict_resolved_tag_def_origin_changed(
     auth_server, merge_request_user, conflict_resolution_replace
 ):
     old_tag_definition = conflict_resolution_replace.tag_definition_origin
-    TagDefinition.change_or_create(
+    TagDefinitionHistory.change_or_create(
         id_persistent=old_tag_definition.id_persistent,
         version=old_tag_definition.id,
         name="changed tag definition test",
@@ -321,6 +330,7 @@ def test_conflict_resolved_tag_def_origin_changed(
             "id_persistent": c.id_persistent_merge_request,
             "created_at": format_datetime(c.time_merge_request),
             "state": "OPEN",
+            "disable_origin_on_merge": False,
             "origin": {
                 "id_persistent": c.id_persistent_tag_def_origin,
                 "id_parent_persistent": None,
@@ -330,6 +340,7 @@ def test_conflict_resolved_tag_def_origin_changed(
                 "owner": "test-user1",
                 "curated": False,
                 "hidden": False,
+                "disabled": False,
             },
             "destination": {
                 "id_persistent": c.id_persistent_tag_def_destination,
@@ -340,6 +351,7 @@ def test_conflict_resolved_tag_def_origin_changed(
                 "owner": "test-user",
                 "curated": False,
                 "hidden": False,
+                "disabled": False,
             },
         },
     )
@@ -453,6 +465,7 @@ def test_tag_instance_destination_value_added(
             "id_persistent": c.id_persistent_merge_request,
             "created_at": format_datetime(c.time_merge_request),
             "state": "OPEN",
+            "disable_origin_on_merge": False,
             "origin": {
                 "id_persistent": c.id_persistent_tag_def_origin,
                 "id_parent_persistent": None,
@@ -462,6 +475,7 @@ def test_tag_instance_destination_value_added(
                 "owner": "test-user1",
                 "curated": False,
                 "hidden": False,
+                "disabled": False,
             },
             "destination": {
                 "id_persistent": c.id_persistent_tag_def_destination,
@@ -472,6 +486,7 @@ def test_tag_instance_destination_value_added(
                 "owner": "test-user",
                 "curated": False,
                 "hidden": False,
+                "disabled": False,
             },
         },
     )

@@ -19,6 +19,7 @@ from vran.merge_request.entity.models_django import (
 from vran.merge_request.models_django import TagMergeRequest
 from vran.tag.models_django import (
     TagDefinition,
+    TagDefinitionHistory,
     TagInstanceAbstract,
     TagInstanceHistory,
 )
@@ -56,7 +57,7 @@ def apply_entity_merge_request(
                 include_resolved=False, resolution_values=recent_resolutions
             ).annotate(
                 tag_definition_dict=models.Subquery(
-                    TagDefinition.most_recent_query_set()
+                    TagDefinition.query_set()
                     .filter(
                         id_persistent=models.OuterRef("id_tag_definition_persistent")
                     )[:1]
@@ -93,6 +94,9 @@ def apply_entity_merge_request(
 
     except Exception as exc:  # pylint: disable=broad-except
         logging.error(None, exc_info=exc)
+        merge_request = mr_query.get()
+        merge_request.state = EntityMergeRequest.OPEN
+        merge_request.save()
 
 
 def create_tag_definition_merge_request_for_unresolved_conflict(  # pylint: disable=too-many-arguments
@@ -109,7 +113,7 @@ def create_tag_definition_merge_request_for_unresolved_conflict(  # pylint: disa
     # Create temporary i.e. disabled tag definition
     while True:
         try:
-            tag_definition_new, _do_write = TagDefinition.change_or_create(
+            tag_definition_new, _do_write = TagDefinitionHistory.change_or_create(
                 id_persistent=uuid4(),
                 name=f"from entity merge {entity_merge_request.id_persistent}_{count}",
                 id_parent_persistent=tag_definition_existing_dict["id_persistent"],
@@ -141,6 +145,7 @@ def create_tag_definition_merge_request_for_unresolved_conflict(  # pylint: disa
         state=TagMergeRequest.OPEN,
         created_at=time_edit,
         id_persistent=uuid4(),
+        disable_origin_on_merge=True,
     )
 
 
@@ -152,10 +157,17 @@ def apply_resolution(
     "Apply a entity merge request conflict resolution"
     if not resolution.replace:
         return
+    tag_instance_destination = resolution.tag_instance_destination
+    if tag_instance_destination is None:
+        id_destination_persistent = uuid4()
+        version = None
+    else:
+        id_destination_persistent = tag_instance_destination.id_persistent
+        version = tag_instance_destination.id
     try:
         instance, _do_write = TagInstanceHistory.change_or_create(
-            id_persistent=resolution.tag_instance_destination.id_persistent,
-            version=resolution.tag_instance_destination_id,
+            id_persistent=id_destination_persistent,
+            version=version,
             id_entity_persistent=resolution.entity_destination.id_persistent,
             id_tag_definition_persistent=resolution.tag_definition.id_persistent,
             time_edit=time_edit,

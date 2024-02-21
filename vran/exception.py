@@ -100,5 +100,12 @@ class TagDefinitionMissingException(Exception):
 class TagDefinitionPermissionException(Exception):
     "Indicates that there are insufficient permissions for writing to a tag definition"
 
-    def __init__(self, tag_definition) -> None:
-        self.tag_definition = tag_definition
+    def __init__(self, id_persistent) -> None:
+        self.id_persistent = id_persistent
+
+
+class TagDefinitionDisabledException(Exception):
+    "Indicates a write to a disabled tag definition."
+
+    def __init__(self, id_persistent):
+        self.id_persistent = id_persistent

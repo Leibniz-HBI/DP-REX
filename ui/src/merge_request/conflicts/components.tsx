@@ -1,32 +1,82 @@
 import { useLoaderData } from 'react-router-dom'
-import { useMergeRequestConflictResolutions } from './hooks'
 import {
     ChoiceButton,
     RemoteTriggerButton,
     VrAnLoading
 } from '../../util/components/misc'
-import { Accordion, Col, ListGroup, ProgressBar, Row } from 'react-bootstrap'
+import {
+    Accordion,
+    Col,
+    Form,
+    ListGroup,
+    OverlayTrigger,
+    ProgressBar,
+    Row,
+    Tooltip
+} from 'react-bootstrap'
 import { MergeRequestConflict, TagInstance } from './state'
-import { Remote } from '../../util/state'
-import { useLayoutEffect } from 'react'
+import { RemoteInterface } from '../../util/state'
+import { useEffect } from 'react'
 import { Entity } from '../../table/state'
 import { TagDefinition } from '../../column_menu/state'
 import { MergeRequest } from '../state'
 import { MergeRequestListItemBody } from '../components'
+import { useAppDispatch, useAppSelector } from '../../hooks'
+import {
+    getMergeRequestConflicts,
+    resolveConflict,
+    startMerge,
+    toggleDisableOriginOnMerge
+} from './thunks'
+import {
+    selectDisableOriginOnMerge,
+    selectResolvedCount,
+    selectStartMerge,
+    selectTagMergeRequestConflictsByCategory
+} from './selectors'
 
 export function MergeRequestConflictResolutionView() {
     const idMergeRequestPersistent = useLoaderData() as string
-    const {
-        conflictsByCategory,
-        getMergeRequestConflictsCallback,
-        resolveConflictCallback,
-        startMerge,
-        startMergeCallback,
-        resolvedCount,
-        conflictsCount
-    } = useMergeRequestConflictResolutions(idMergeRequestPersistent)
     //eslint-disable-next-line react-hooks/exhaustive-deps
-    useLayoutEffect(getMergeRequestConflictsCallback, [idMergeRequestPersistent])
+    const dispatch = useAppDispatch()
+    const conflictsByCategory = useAppSelector(selectTagMergeRequestConflictsByCategory)
+    const startMergeValue = useAppSelector(selectStartMerge)
+    const [resolvedCount, conflictsCount] = useAppSelector(selectResolvedCount)
+    const resolveConflictCallback = ({
+        entity,
+        tagInstanceOrigin,
+        tagDefinitionOrigin,
+        tagInstanceDestination,
+        tagDefinitionDestination,
+        replace
+    }: {
+        entity: Entity
+        tagInstanceOrigin: TagInstance
+        tagDefinitionOrigin: TagDefinition
+        tagInstanceDestination?: TagInstance
+        tagDefinitionDestination: TagDefinition
+        replace: boolean
+    }) => {
+        dispatch(
+            resolveConflict({
+                idMergeRequestPersistent,
+                entity,
+                tagInstanceOrigin,
+                tagDefinitionOrigin,
+                tagInstanceDestination,
+                tagDefinitionDestination,
+                replace
+            })
+        )
+    }
+    useEffect(() => {
+        if (conflictsByCategory.isLoading) {
+            return
+        }
+        dispatch(getMergeRequestConflicts(idMergeRequestPersistent))
+        //eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [idMergeRequestPersistent])
+
     const conflictsByCategoryValue = conflictsByCategory.value
     if (conflictsByCategory.isLoading || conflictsByCategoryValue === undefined) {
         return VrAnLoading()
@@ -38,8 +88,10 @@ export function MergeRequestConflictResolutionView() {
                     <Col xs="auto">
                         <RemoteTriggerButton
                             label="Apply Resolutions to Destination"
-                            onClick={startMergeCallback}
-                            isLoading={startMerge.isLoading}
+                            onClick={() =>
+                                dispatch(startMerge(idMergeRequestPersistent))
+                            }
+                            isLoading={startMergeValue.value}
                         />
                     </Col>
                     <Col>
@@ -47,6 +99,25 @@ export function MergeRequestConflictResolutionView() {
                             mergeRequest={conflictsByCategoryValue.mergeRequest}
                         />
                     </Col>
+                    <OverlayTrigger
+                        overlay={
+                            <Tooltip id="disable-origin-on-merge-tooltip">
+                                When this toggle is enabled, the origin tag definition
+                                will be disabled. I.e., the tag definition will not
+                                appear anymore in the the tag definition explorer but is
+                                still kept in the history.
+                            </Tooltip>
+                        }
+                        placement="left"
+                    >
+                        <Col>
+                            <DisableOriginOnMergeToggle
+                                idMergeRequestPersistent={
+                                    conflictsByCategoryValue.mergeRequest.idPersistent
+                                }
+                            />
+                        </Col>
+                    </OverlayTrigger>
                 </Row>
                 <Row>
                     <MergeRequestConflictProgressBar
@@ -85,7 +156,7 @@ export function MergeRequestConflictResolutionView() {
                                 </Accordion.Body>
                             </Accordion.Item>
                         )}
-                        <Accordion.Item eventKey="1">
+                        <Accordion.Item eventKey="1" data-testid="conflicts-accordion">
                             <Accordion.Header key="conflicts-accordion-header">
                                 The Merge request has the following conflicts
                             </Accordion.Header>
@@ -120,7 +191,7 @@ export function MergeRequestConflictItem({
     mergeRequest,
     resolveConflictCallback
 }: {
-    conflict: Remote<MergeRequestConflict>
+    conflict: RemoteInterface<MergeRequestConflict>
     mergeRequest: MergeRequest
     resolveConflictCallback: ({
         entity,
@@ -159,7 +230,7 @@ export function MergeRequestConflictItem({
         <span className={destinationStyle}>{destinationInstanceValue}</span>
     )
     return (
-        <ListGroup.Item className="mb-1">
+        <ListGroup.Item className="mb-1" data-testid="conflict-item">
             <Row>
                 <Col sm={2} key="entity-column">
                     <Row key="entity-description">Entity with display txt:</Row>
@@ -201,7 +272,7 @@ export function MergeRequestConflictItem({
                         <Col xs="auto" key="button-column">
                             <ChoiceButton
                                 className="w-200px mt-1"
-                                label="Use new Value"
+                                label="Use New Value"
                                 checked={conflict.value.replace == true}
                                 onClick={() =>
                                     resolveConflictCallback({
@@ -255,4 +326,29 @@ export function MergeRequestConflictProgressBar({
         }
     }
     return <ProgressBar variant={variant} label={label} striped={striped} now={now} />
+}
+
+export function DisableOriginOnMergeToggle({
+    idMergeRequestPersistent
+}: {
+    idMergeRequestPersistent: string
+}) {
+    const dispatch = useAppDispatch()
+    const disableOriginOnMerge = useAppSelector(selectDisableOriginOnMerge)
+    return (
+        <Form.Check
+            type="switch"
+            label="Disable Origin on Merge"
+            checked={disableOriginOnMerge}
+            onChange={(evt) => {
+                evt.stopPropagation()
+                dispatch(
+                    toggleDisableOriginOnMerge(
+                        idMergeRequestPersistent,
+                        !disableOriginOnMerge
+                    )
+                )
+            }}
+        />
+    )
 }

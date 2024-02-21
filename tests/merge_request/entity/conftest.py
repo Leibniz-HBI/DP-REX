@@ -7,7 +7,7 @@ from vran.merge_request.entity.models_django import (
     EntityConflictResolution,
     EntityMergeRequest,
 )
-from vran.tag.models_django import TagDefinition, TagInstanceHistory
+from vran.tag.models_django import TagDefinitionHistory, TagInstanceHistory
 
 
 @pytest.fixture
@@ -199,7 +199,7 @@ def instance_merge_request_destination_user_same_value1(merge_request_user):
 
 @pytest.fixture()
 def tag_def_for_mr_changed(tag_def1):
-    tag_def, _ = TagDefinition.change_or_create(
+    tag_def, _ = TagDefinitionHistory.change_or_create(
         id_persistent=tag_def1.id_persistent,
         version=tag_def1.id,
         time_edit=c.time_tag_def_changed,
@@ -231,6 +231,25 @@ def conflict_resolution_replace(
         entity_destination=destination_entity_for_mr,
         tag_instance_origin=instances_merge_request_origin_user[1],
         tag_instance_destination=instance_merge_request_destination_user_conflict,
+        merge_request=merge_request_user,
+        replace=True,
+    )
+
+
+@pytest.fixture
+def conflict_resolution_replace_empty_destination(
+    merge_request_user,
+    origin_entity_for_mr,
+    destination_entity_for_mr,
+    tag_def1,
+    instances_merge_request_origin_user,
+):
+    return EntityConflictResolution.objects.create(  # pylint: disable=no-member
+        tag_definition=tag_def1,
+        entity_origin=origin_entity_for_mr,
+        entity_destination=destination_entity_for_mr,
+        tag_instance_origin=instances_merge_request_origin_user[1],
+        tag_instance_destination=None,
         merge_request=merge_request_user,
         replace=True,
     )

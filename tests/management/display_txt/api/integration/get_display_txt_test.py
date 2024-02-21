@@ -44,13 +44,14 @@ def test_three_element_order(auth_server_commissioner, display_txt_order_0_1_cur
         {
             "tag_definitions": [
                 {
-                    "id_persistent": ct.id_tag_persistent_test,
+                    "id_persistent": ct.id_tag_def_persistent_test,
                     "id_parent_persistent": None,
                     "name": ct.name_tag_def_test,
                     "name_path": [ct.name_tag_def_test],
                     "type": "STRING",
                     "curated": False,
                     "hidden": False,
+                    "disabled": False,
                     "owner": "test-user",
                 },
                 {
@@ -61,6 +62,7 @@ def test_three_element_order(auth_server_commissioner, display_txt_order_0_1_cur
                     "type": "STRING",
                     "curated": False,
                     "hidden": False,
+                    "disabled": False,
                     "owner": "test-user1",
                 },
                 {
@@ -71,6 +73,7 @@ def test_three_element_order(auth_server_commissioner, display_txt_order_0_1_cur
                     "type": "STRING",
                     "curated": True,
                     "hidden": False,
+                    "disabled": False,
                     "owner": None,
                 },
             ]
