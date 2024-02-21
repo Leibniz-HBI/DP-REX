@@ -34,7 +34,7 @@ def post_reverse_origin_destination(url, id_merge_request_persistent, cookies=No
 
 def get_merge_requests(url, cookies=None):
     return requests.get(
-        url + "/vran/api/merge_requests/entities", cookies=cookies, timeout=900
+        url + "/vran/api/merge_requests/entities/all", cookies=cookies, timeout=900
     )
 
 
