@@ -7,6 +7,7 @@ from django.http import HttpRequest
 from ninja import Router, Schema
 
 from vran.exception import ApiError, NotAuthenticatedException
+from vran.merge_request.models_django import TagMergeRequest
 from vran.tag.api.definitions import (
     tag_definition_db_dict_to_api,
     tag_definition_db_to_api,
@@ -69,6 +70,7 @@ def post_curation(request: HttpRequest, id_tag_definition_persistent):
             OwnershipRequestDb.by_id_tag_definition_persistent_query_set(
                 id_tag_definition_persistent
             ).delete()
+            TagMergeRequest.change_owner_for_tag_def(tag_definition.id_persistent, None)
         return 200, tag_definition_db_to_api(tag_definition)
     except TagDefinitionDb.DoesNotExist:  # pylint: disable=no-member
         return 404, ApiError(msg="Tag Definition does not exist.")
@@ -169,6 +171,9 @@ def post_accept_ownership_request(
         if do_save:
             with transaction.atomic():
                 tag_definition_new.save()
+                TagMergeRequest.change_owner_for_tag_def(
+                    tag_definition_new.id_persistent, ownership_request.receiver
+                )
                 ownership_request.delete()
         return 200, tag_definition_db_to_api(tag_definition_new)
 
