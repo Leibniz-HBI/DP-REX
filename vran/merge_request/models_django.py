@@ -81,7 +81,7 @@ class TagMergeRequest(AbstractMergeRequest):
 
     @classmethod
     def change_owner_for_tag_def(
-        cls, id_tag_definition_persistent: str, user: VranUser
+        cls, id_tag_definition_persistent: str, user: Optional[VranUser]
     ):
         """Change the owner for all merge requests that have
         a specific tag definition as destination."""
