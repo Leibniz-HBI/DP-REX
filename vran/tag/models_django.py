@@ -14,6 +14,7 @@ from vran.exception import (
     ForbiddenException,
     InvalidTagValueException,
     NoParentTagException,
+    NoSelfParentTagException,
     TagDefinitionDisabledException,
     TagDefinitionExistsException,
     TagDefinitionMissingException,
@@ -55,6 +56,17 @@ class TagDefinitionAbstract(models.Model):
         # pylint: disable=too-few-public-methods
         abstract = True
 
+    def is_owner(self, user: VranUser):
+        "Check wether a user owns the tag definition."
+        return self.owner == user or (
+            self.owner is None
+            and user.permission_group in {VranUser.COMMISSIONER, VranUser.EDITOR}
+        )
+
+    def has_write_access(self, user: VranUser):
+        "Check wether a user can write to the tag definition."
+        return self.is_owner(user)
+
 
 class TagDefinitionHistory(TagDefinitionAbstract):
     "Django ORM model for tag definitions history."
@@ -93,24 +105,27 @@ class TagDefinitionHistory(TagDefinitionAbstract):
         """Return the most recent version of a tag definition."""
         return cls.most_recent_by_id_query_set(id_persistent).get()
 
-    def set_curated(self, time_edit):
+    def set_curated(self, requester: VranUser, time_edit):
         "Set curated state for a tag definition."
         return TagDefinitionHistory.change_or_create(
             self.id_persistent,
             time_edit,
             name=self.name,
+            requester=requester,
             id_parent_persistent=self.id_parent_persistent,
             version=self.id,  # pylint: disable=no-member
             owner_id=None,
             curated=True,
+            skip_write_check=True,
         )
 
-    def set_owner(self, user: VranUser, time_edit):
+    def set_owner(self, user: VranUser, requester: VranUser, time_edit):
         "Set curated state for a tag definition."
         return TagDefinitionHistory.change_or_create(
             self.id_persistent,
             time_edit,
             name=self.name,
+            requester=requester,
             id_parent_persistent=self.id_parent_persistent,
             version=self.id,  # pylint: disable=no-member
             owner_id=user.id,
@@ -123,9 +138,9 @@ class TagDefinitionHistory(TagDefinitionAbstract):
         id_persistent: str,
         time_edit: datetime,
         name: str,
+        requester: VranUser,
         id_parent_persistent: Optional[str] = None,
         version: Optional[int] = None,
-        owner: Optional[VranUser] = None,
         **kwargs,
     ):
         """Changes a tag definition in the database by adding a new version.
@@ -136,6 +151,8 @@ class TagDefinitionHistory(TagDefinitionAbstract):
             and a flag indicating wether the object changed from the most recent version.
         """
         if id_parent_persistent is not None:
+            if id_parent_persistent == id_persistent:
+                raise NoSelfParentTagException()
             try:
                 TagDefinition.most_recent_by_id(id_parent_persistent)
             except TagDefinition.DoesNotExist as exc:  # pylint: disable=no-member
@@ -166,11 +183,11 @@ class TagDefinitionHistory(TagDefinitionAbstract):
             return change_or_create_versioned(
                 cls,
                 id_persistent,
+                requester,
                 version,
                 name=name,
                 time_edit=time_edit,
                 id_parent_persistent=id_parent_persistent,
-                owner=owner,
                 **kwargs,
             )
         except DbObjectExistsException as exc:
@@ -238,13 +255,13 @@ class TagDefinition(TagDefinitionAbstract):
         # pylint: disable=no-member
         return TagDefinitionHistory.objects.filter(id=self.id).get()
 
-    def set_curated(self, time_edit):
+    def set_curated(self, requester: VranUser, time_edit):
         "Set curated state for a tag definition."
-        return self._get_history_entry().set_curated(time_edit)
+        return self._get_history_entry().set_curated(requester, time_edit)
 
-    def set_owner(self, user: VranUser, time_edit):
+    def set_owner(self, user: VranUser, requester: VranUser, time_edit):
         "Set curated state for a tag definition."
-        return self._get_history_entry().set_owner(user, time_edit)
+        return self._get_history_entry().set_owner(user, requester, time_edit)
 
     def check_value(self, val: str):
         "Check if a value is of the type for this tag."
@@ -276,17 +293,6 @@ class TagDefinition(TagDefinitionAbstract):
                 models.Q(curated=True) | models.Q(owner=user)
             )
         return cls.objects.filter(owner=user)  # pylint: disable=no-member
-
-    def has_write_access(self, user: VranUser):
-        "Check wether a user can write to the tag definition."
-        return self.is_owner(user)
-
-    def is_owner(self, user: VranUser):
-        "Check wether a user owns the tag definition."
-        return self.owner == user or (
-            self.owner is None
-            and user.permission_group in {VranUser.COMMISSIONER, VranUser.EDITOR}
-        )
 
     @classmethod
     def curated_query_set(cls):
@@ -387,6 +393,7 @@ class TagInstanceHistory(TagInstanceAbstract):
             return change_or_create_versioned(
                 cls,
                 id_persistent,
+                user,
                 version,
                 id_entity_persistent=id_entity_persistent,
                 id_tag_definition_persistent=id_tag_definition_persistent,
@@ -566,6 +573,7 @@ class OwnershipRequest(models.Model):
                         username="owner__username",
                         id_persistent="owner__id_persistent",
                         permission_group="owner__permission_group",
+                        id="owner__id",
                     ),
                     curated="curated",
                     hidden="hidden",

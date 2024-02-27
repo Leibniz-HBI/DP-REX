@@ -11,15 +11,18 @@ from ninja import Router, Schema
 from ninja.constants import NOT_SET
 
 from vran.exception import ApiError, NotAuthenticatedException
-from vran.tag.api.definitions import tag_definition_db_to_api
+from vran.tag.api.models_conversion import tag_definition_db_to_api
 from vran.tag.models_django import TagDefinition as TagDefinitionDb
-from vran.user.models_api import (
+from vran.user.models_api.login import (
     LoginRequest,
     LoginResponse,
     LoginResponseList,
-    PublicUserInfo,
     RegisterRequest,
     SearchResponse,
+)
+from vran.user.models_conversion import (
+    permission_group_db_to_api,
+    user_db_to_public_user_info,
 )
 from vran.util import EmptyResponse, VranUser
 from vran.util.auth import VranGroup, check_user, vran_auth
@@ -71,7 +74,7 @@ def register_post(_, registration_info: RegisterRequest):
     "API endpoint for registration"
     try:
         user = VranUser.objects.create_user(
-            username=registration_info.user_name,
+            username=registration_info.username,
             email=registration_info.email,
             password=registration_info.password,
             first_name=registration_info.names_personal,
@@ -287,14 +290,6 @@ permission_group_api_to_db = {
     "COMMISSIONER": VranUser.COMMISSIONER,
 }
 
-permission_group_db_to_api = {
-    VranUser.APPLICANT: "APPLICANT",
-    VranUser.READER: "READER",
-    VranUser.CONTRIBUTOR: "CONTRIBUTOR",
-    VranUser.EDITOR: "EDITOR",
-    VranUser.COMMISSIONER: "COMMISSIONER",
-}
-
 
 def user_db_to_login_response(user: VranUser):
     "Converts a django user to a login response."
@@ -309,22 +304,11 @@ def user_db_to_login_response(user: VranUser):
         except TagDefinitionDb.DoesNotExist:  # pylint: disable=no-member
             user.remove_tag_definition_by_id(id_tag_definition_persistent)
     return LoginResponse(
-        user_name=user.get_username(),
+        username=user.get_username(),
         id_persistent=str(user.id_persistent),
         names_personal=user.first_name,
         names_family=user.last_name,
         email=user.email,
         tag_definition_list=tag_definitions,
-        permission_group=permission_group_db_to_api[user.permission_group],
-    )
-
-
-def user_db_to_public_user_info(user):
-    "Convert a django user to a public user info"
-    if user is None:
-        return None
-    return PublicUserInfo(
-        user_name=user.get_username(),
-        id_persistent=str(user.id_persistent),
         permission_group=permission_group_db_to_api[user.permission_group],
     )

@@ -3,7 +3,7 @@ from vran.contribution.models_api import ContributionCandidate
 from vran.contribution.models_django import (
     ContributionCandidate as ContributionCandidateDb,
 )
-from vran.tag.api.definitions import tag_definition_db_dict_to_api
+from vran.tag.api.models_conversion import tag_definition_db_dict_to_api
 
 _contribution_state_mapping_db_to_api = {
     ContributionCandidateDb.UPLOADED: "UPLOADED",

@@ -11,12 +11,12 @@ from vran.merge_request.entity.api import TagInstance, merge_request_step_db_to_
 from vran.merge_request.models_django import TagConflictResolution
 from vran.merge_request.models_django import TagMergeRequest as MergeRequestDb
 from vran.person.api import PersonNatural, person_db_dict_to_api
-from vran.tag.api.definitions import tag_definition_db_to_api
 from vran.tag.api.models_api import TagDefinitionResponse
+from vran.tag.api.models_conversion import tag_definition_db_to_api
 from vran.tag.models_django import TagDefinition as TagDefinitionDb
 from vran.tag.models_django import TagInstance as TagInstanceDb
-from vran.user.api import user_db_to_public_user_info
-from vran.user.models_api import PublicUserInfo
+from vran.user.models_api.public import PublicUserInfo
+from vran.user.models_conversion import user_db_to_public_user_info
 from vran.util.auth import check_user
 
 router = Router()

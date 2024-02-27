@@ -8,11 +8,8 @@ from vran.management.display_txt.util import (
     get_display_txt_order_tag_definitions,
 )
 from vran.management.models_django import AlreadyInListException, ConfigValue
-from vran.tag.api.definitions import (
-    TagDefinitionResponse,
-    TagDefinitionResponseList,
-    tag_definition_db_to_api,
-)
+from vran.tag.api.definitions import TagDefinitionResponse, TagDefinitionResponseList
+from vran.tag.api.models_conversion import tag_definition_db_to_api
 from vran.tag.models_django import TagDefinition
 from vran.util import VranUser
 from vran.util.auth import check_user

@@ -19,8 +19,8 @@ from vran.merge_request.entity.queue import apply_entity_merge_request
 from vran.person.api import PersonNatural, person_db_to_api
 from vran.tag.models_django import TagDefinition as TagDefinitionDb
 from vran.tag.queue import get_tag_definition_name_path_from_parts
-from vran.user.api import user_db_to_public_user_info
-from vran.user.models_api import PublicUserInfo
+from vran.user.models_api.public import PublicUserInfo
+from vran.user.models_conversion import user_db_to_public_user_info
 from vran.util import VranUser as VranUserDb
 from vran.util import timestamp
 from vran.util.auth import check_user

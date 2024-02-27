@@ -7,6 +7,7 @@ from django.db import models
 from django.db.models.aggregates import Max
 
 from vran.exception import DbObjectExistsException
+from vran.util import VranUser
 from vran.util.django import change_or_create_versioned
 
 
@@ -64,10 +65,11 @@ class Entity(models.Model):
         return most_recent.filter(disabled=False)
 
     @classmethod
-    def change_or_create(
+    def change_or_create(  # pylint: disable=too-many-arguments
         cls,
         id_persistent: str,
         time_edit: datetime,
+        requester: VranUser,
         display_txt: Optional[str] = None,
         version: Optional[int] = None,
         **kwargs,
@@ -83,6 +85,7 @@ class Entity(models.Model):
             return change_or_create_versioned(
                 cls,
                 id_persistent,
+                requester,
                 version,
                 display_txt=display_txt,
                 time_edit=time_edit,
